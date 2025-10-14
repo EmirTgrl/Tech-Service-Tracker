@@ -1,0 +1,122 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  TECHNICIAN
+}
+
+enum Status {
+  PENDING
+  IN_REPAIR
+  COMPLETED
+  DELIVERED
+}
+
+model User {
+  id          Int         @id @default(autoincrement())
+  name        String      @db.VarChar(100)
+  email       String      @unique @db.VarChar(100)
+  password    String      // Hashed password
+  role        Role        @default(TECHNICIAN)
+  
+  // Relations
+  assignedDevices Device[]
+  statusLogs      StatusLog[]
+  
+  createdAt   DateTime    @default(now())
+}
+
+model Customer {
+  id          Int         @id @default(autoincrement())
+  name        String      @db.VarChar(150)
+  phone       String      @db.VarChar(20)
+  email       String?     @db.VarChar(150)
+  
+  // Relation
+  devices     Device[]
+  
+  createdAt   DateTime    @default(now())
+}
+
+model Device {
+  id              Int         @id @default(autoincrement())
+  
+  // Customer Relation
+  customer        Customer    @relation(fields: [customerId], references: [id])
+  customerId      Int
+  
+  // Device Infos
+  deviceType      String      @db.VarChar(50)
+  brand           String      @db.VarChar(50)
+  model           String      @db.VarChar(50)
+  serialNo        String      @unique @db.VarChar(100)
+  issueDesc       String      @db.Text
+  trackingCode    String      @unique @db.VarChar(50) 
+  
+  // Tracking and Cost
+  currentStatus   Status      @default(PENDING)
+  estimatedCost   Float?      
+  finalCost       Float?      
+  
+  assignedTechnician User?    @relation(fields: [technicianId], references: [id])
+  technicianId    Int?
+
+  images          DeviceImage[]
+  
+  repairs         Repair[]        
+  statusHistory   StatusLog[]     
+  
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+}
+
+model DeviceImage {
+  id          Int         @id @default(autoincrement())
+  
+  // Device Relation
+  device      Device      @relation(fields: [deviceId], references: [id])
+  deviceId    Int
+  
+  imageUrl    String      @db.VarChar(512)
+  description String?     @db.VarChar(255)
+  
+  uploadedAt  DateTime    @default(now())
+}
+
+model Repair {
+  id              Int         @id @default(autoincrement())
+  
+  // Device Relation
+  device          Device      @relation(fields: [deviceId], references: [id])
+  deviceId        Int
+  
+  description     String      @db.VarChar(255)
+  cost            Float
+  
+  createdAt       DateTime    @default(now())
+}
+
+model StatusLog {
+  id              Int         @id @default(autoincrement())
+  
+  // Device Relation
+  device          Device      @relation(fields: [deviceId], references: [id])
+  deviceId        Int
+  
+  newStatus       Status
+  notes           String?     @db.Text
+  
+  // User Relation
+  user            User        @relation(fields: [userId], references: [id])
+  userId          Int
+  
+  createdAt       DateTime    @default(now())
+}

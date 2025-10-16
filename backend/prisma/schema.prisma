@@ -37,7 +37,7 @@ model User {
 model Customer {
   id          Int         @id @default(autoincrement())
   name        String      @db.VarChar(150)
-  phone       String      @db.VarChar(20)
+  phone       String      @unique @db.VarChar(20)
   email       String?     @db.VarChar(150)
   
   // Relation

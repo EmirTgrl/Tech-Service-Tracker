@@ -1,6 +1,7 @@
 const express = require("express");
 const dotenv = require("dotenv");
 const cors = require("cors");
+const path = require("path");
 const authRoutes = require("./src/routes/authRoutes");
 const deviceRoutes = require("./src/routes/deviceRoutes");
 
@@ -17,6 +18,7 @@ app.use(express.json());
 // Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/devices", deviceRoutes);
+app.use("/public/uploads", express.static(path.join(__dirname, "uploads")));
 
 // Health Check Endpoint
 app.get("/api/status", (req, res) => {

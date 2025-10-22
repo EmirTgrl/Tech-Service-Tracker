@@ -1,4 +1,6 @@
 const prisma = require("../db");
+const fs = require("fs");
+const path = require("path");
 const { generateTrackingCode } = require("../utils/codeGenerator");
 
 const createDevice = async (req, res) => {
@@ -385,6 +387,62 @@ const addRepairRecord = async (req, res) => {
   }
 };
 
+const uploadDeviceImage = async (req, res) => {
+  const { id } = req.params;
+  const { description } = req.body;
+
+  if (!req.file) {
+    return res
+      .status(400)
+      .json({ error: "Please select an image file to upload." });
+  }
+
+  try {
+    const deviceId = parseInt(id);
+
+    const deviceExists = await prisma.device.findUnique({
+      where: { id: deviceId },
+    });
+
+    if (!deviceExists) {
+      fs.unlinkSync(req.file.path);
+      return res.status(404).json({ error: "No device found to add image." });
+    }
+
+    const filename = req.file.filename;
+
+    const imageUrl = `/public/uploads/${filename}`;
+
+    const newImage = await prisma.deviceImage.create({
+      data: {
+        deviceId: deviceId,
+        imageUrl: imageUrl,
+        description: description || null,
+      },
+    });
+
+    res.status(201).json({
+      message:
+        "The image has been successfully uploaded and added to the device..",
+      image: newImage,
+    });
+  } catch (error) {
+    console.error("Image upload or database record error:", error);
+
+    if (req.file && fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
+
+    if (error.code === "P2025") {
+      return res.status(404).json({ error: "No related device record found." });
+    }
+
+    res
+      .status(500)
+      .json({ error: "Server error. Image could not be uploaded." });
+  }
+};
+
 module.exports = {
   createDevice,
   getAllDevices,
@@ -393,4 +451,5 @@ module.exports = {
   updateDevice,
   updateDeviceStatus,
   addRepairRecord,
+  uploadDeviceImage,
 };

@@ -7,8 +7,10 @@ const {
   updateDevice,
   updateDeviceStatus,
   addRepairRecord,
+  uploadDeviceImage,
 } = require("../controllers/deviceController");
-const { protect, authorize } = require("../middleware");
+const { uploadSingleImage } = require("../middleware/upload.js");
+const { protect, authorize } = require("../middleware.js");
 
 const router = express.Router();
 
@@ -34,6 +36,14 @@ router.post(
   protect,
   authorize(["ADMIN", "TECHNICIAN"]),
   addRepairRecord
+);
+
+router.post(
+  "/:id/upload",
+  protect,
+  authorize(["ADMIN", "TECHNICIAN"]),
+  uploadSingleImage,
+  uploadDeviceImage
 );
 
 module.exports = router;

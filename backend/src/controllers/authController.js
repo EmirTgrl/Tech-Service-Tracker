@@ -60,6 +60,11 @@ const loginUser = async (req, res) => {
     const user = await prisma.user.findUnique({
       where: { email },
     });
+
+    if (!user || !user.isActive) {
+      return res.status(401).json({ error: "Invalid email or password." });
+    }
+
     if (!user) {
       return res.status(401).json({ error: "Invalid email or password." });
     }

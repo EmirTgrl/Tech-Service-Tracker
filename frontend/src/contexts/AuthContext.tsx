@@ -19,6 +19,7 @@ interface AuthContextType {
   user: User | null;
   token: string | null;
   isAuthenticated: boolean;
+  isLoading: boolean;
   login: (user: User, token: string) => void;
   logout: () => void;
 }
@@ -28,6 +29,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     try {
@@ -40,7 +42,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     } catch (error) {
       console.error("Error retrieving auth data from localStorage", error);
-      logout();
+      localStorage.removeItem("user");
+      localStorage.removeItem("token");
+    } finally {
+      setIsLoading(false);
     }
   }, []);
 
@@ -49,6 +54,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setToken(token);
     localStorage.setItem("user", JSON.stringify(user));
     localStorage.setItem("token", token);
+    setIsLoading(false);
   };
 
   const logout = () => {
@@ -56,13 +62,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setToken(null);
     localStorage.removeItem("user");
     localStorage.removeItem("token");
+    setIsLoading(false);
   };
 
   const isAuthenticated = !!token;
 
   return (
     <AuthContext.Provider
-      value={{ user, token, isAuthenticated, login, logout }}
+      value={{ user, token, isAuthenticated, isLoading, login, logout }}
     >
       {children}
     </AuthContext.Provider>

@@ -311,12 +311,17 @@ const updateDeviceStatus = async (req, res) => {
           notes: notes || `Status changed to ${upperStatus}`,
           userId: req.user.id,
         },
+        include: {
+          user: {
+            select: { name: true },
+          },
+        },
       }),
     ]);
 
     res.json({
       message: `Device status updated to ${upperStatus} successfully.`,
-      device: updateDevice,
+      device: updatedDevice,
       log: newLog,
     });
   } catch (error) {

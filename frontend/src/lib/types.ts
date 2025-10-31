@@ -71,3 +71,32 @@ export interface DeviceDetail {
   repairs: Repair[];
   images: DeviceImage[];
 }
+
+export interface UserSummary {
+  id: number;
+  name: string;
+  email: string;
+  role: "ADMIN" | "TECHNICIAN";
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface CustomerTrackInfo {
+  trackingCode: string;
+  currentStatus: "PENDING" | "IN_REPAIR" | "COMPLETED" | "DELIVERED";
+  issueDesc: string;
+  createdAt: string;
+  estimatedCost: number | null;
+  customer: {
+    name: string;
+    phone: string;
+  };
+  statusHistory: {
+    newStatus: string;
+    notes: string | null;
+    createdAt: string;
+  }[];
+  repairs: {
+    cost: number;
+  }[];
+}

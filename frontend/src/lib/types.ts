@@ -100,3 +100,13 @@ export interface CustomerTrackInfo {
     cost: number;
   }[];
 }
+
+export interface DashboardStats {
+  deviceStats: {
+    PENDING: number;
+    IN_REPAIR: number;
+    COMPLETED: number;
+    DELIVERED: number;
+  };
+  totalCustomers: number;
+}

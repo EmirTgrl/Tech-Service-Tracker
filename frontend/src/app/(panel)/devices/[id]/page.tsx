@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import api from "@/lib/api";
 import { DeviceDetail, StatusLog, Repair, DeviceImage } from "@/lib/types";
 import Image from "next/image";
+import Swal from "sweetalert2";
 
 const allStatuses: StatusLog["newStatus"][] = [
   "PENDING",
@@ -36,6 +37,19 @@ export default function DeviceDetailPage() {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
 
+  const [isEditing, setIsEditing] = useState(false);
+  const [isEditLoading, setIsEditLoading] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+
+  const [editFormData, setEditFormData] = useState({
+    deviceType: "",
+    brand: "",
+    model: "",
+    serialNo: "",
+    issueDesc: "",
+    estimatedCost: "" as number | string,
+  });
+
   const params = useParams();
   const id = params.id as string;
 
@@ -46,7 +60,18 @@ export default function DeviceDetailPage() {
         setError(null);
         try {
           const response = await api.get(`/devices/${id}`);
-          setDevice(response.data);
+          const deviceData: DeviceDetail = response.data;
+          setDevice(deviceData);
+
+          setEditFormData({
+            deviceType: deviceData.deviceType,
+            brand: deviceData.brand,
+            model: deviceData.model,
+            serialNo: deviceData.serialNo,
+            issueDesc: deviceData.issueDesc,
+            estimatedCost: deviceData.estimatedCost || "",
+          });
+
           setNewStatus(response.data.currentStatus);
         } catch (err: unknown) {
           console.error("Error fetching device details:", err);
@@ -278,6 +303,86 @@ export default function DeviceDetailPage() {
     }
   };
 
+  const handleEditToggle = () => {
+    if (!isEditing) {
+      if (device) {
+        setEditFormData({
+          deviceType: device.deviceType,
+          brand: device.brand,
+          model: device.model,
+          serialNo: device.serialNo,
+          issueDesc: device.issueDesc,
+          estimatedCost: device.estimatedCost || "",
+        });
+      }
+    }
+    setIsEditing(!isEditing);
+    setEditError(null);
+  };
+
+  const handleFormChange = (
+    e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
+    setEditFormData({
+      ...editFormData,
+      [e.target.name]: e.target.value,
+    });
+  };
+
+  const handleDetailsUpdate = async (e: FormEvent) => {
+    e.preventDefault();
+    setIsEditLoading(true);
+    setEditError(null);
+
+    const dataToUpdate = {
+      ...editFormData,
+      estimatedCost: parseFloat(editFormData.estimatedCost as string) || null,
+    };
+
+    try {
+      const response = await api.put(`/devices/${id}`, dataToUpdate);
+      const updatedDevice: DeviceDetail = response.data.device;
+      setDevice(updatedDevice);
+
+      setEditFormData({
+        deviceType: updatedDevice.deviceType,
+        brand: updatedDevice.brand,
+        model: updatedDevice.model,
+        serialNo: updatedDevice.serialNo,
+        issueDesc: updatedDevice.issueDesc,
+        estimatedCost: updatedDevice.estimatedCost || "",
+      });
+
+      setIsEditing(false);
+
+      Swal.fire("Updated!", "Device infos updated successfully.", "success");
+    } catch (err: unknown) {
+      console.error("Update error:", err);
+      let errorMessage = "An error occurred while updating the device.";
+
+      if (
+        err &&
+        typeof err === "object" &&
+        "response" in err &&
+        err.response &&
+        typeof err.response === "object" &&
+        "data" in err.response &&
+        err.response.data &&
+        typeof err.response.data === "object" &&
+        "error" in err.response.data
+      ) {
+        errorMessage = err.response.data.error as string;
+      } else if (err instanceof Error) {
+        errorMessage = err.message;
+      }
+
+      setEditError(errorMessage);
+      Swal.fire("Error!", errorMessage, "error");
+    } finally {
+      setIsEditLoading(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="text-center text-gray-700">Loading device details...</div>
@@ -425,52 +530,196 @@ export default function DeviceDetailPage() {
 
       <div className="lg:col-span-2">
         <div className="rounded-lg bg-white p-6 shadow-md">
-          <h2 className="mb-4 text-xl font-bold text-gray-900">
-            Service Record Details
-          </h2>
-
-          <div className="grid grid-cols-1 gap-x-4 gap-y-2 sm:grid-cols-2">
-            <InfoItem label="Tracking Code" value={device.trackingCode} />
-            <InfoItem label="Current Status" value={device.currentStatus} />
-
-            <h3 className="col-span-full mt-4 border-b pb-1 text-lg font-medium text-gray-800">
-              Device Infos
-            </h3>
-            <InfoItem label="Device Type" value={device.deviceType} />
-            <InfoItem
-              label="Brand / Model"
-              value={`${device.brand} ${device.model}`}
-            />
-            <InfoItem label="Serial Number" value={device.serialNo} />
-            <InfoItem
-              label="Estimated Cost"
-              value={
-                device.estimatedCost
-                  ? `${device.estimatedCost} ₺`
-                  : "Unspecified"
-              }
-            />
-            <InfoItem
-              label="Total Cost"
-              value={
-                device.finalCost ? `${device.finalCost} ₺` : "Not calculated"
-              }
-            />
-
-            <h3 className="col-span-full mt-4 border-b pb-1 text-lg font-medium text-gray-800">
-              Customer Infos
-            </h3>
-            <InfoItem label="Customer" value={device.customer.name} />
-            <InfoItem label="Phone Number" value={device.customer.phone} />
-            <InfoItem label="Email" value={device.customer.email || "-"} />
-
-            <h3 className="col-span-full mt-4 border-b pb-1 text-lg font-medium text-gray-800">
-              Fault Description
-            </h3>
-            <p className="col-span-full rounded-md border border-gray-200 bg-gray-50 p-3 text-sm text-gray-700">
-              {device.issueDesc}
-            </p>
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-xl font-bold text-gray-900">
+              Service Registration Details
+            </h2>
+            <button
+              onClick={handleEditToggle}
+              className={`rounded-md px-4 py-2 text-sm font-medium cursor-pointer ${
+                isEditing
+                  ? "bg-gray-200 text-gray-800 hover:bg-gray-300"
+                  : "bg-indigo-600 text-white hover:bg-indigo-700"
+              }`}
+            >
+              {isEditing ? "Cancel" : "Edit Device Information"}
+            </button>
           </div>
+
+          {isEditing && editError && (
+            <div className="mb-4 rounded bg-red-100 p-3 text-sm text-red-700">
+              {editError}
+            </div>
+          )}
+
+          {!isEditing && (
+            <div className="grid grid-cols-1 gap-x-4 gap-y-2 sm:grid-cols-2">
+              <InfoItem label="Tracking Code" value={device.trackingCode} />
+              <InfoItem label="Current Status" value={device.currentStatus} />
+
+              <h3 className="col-span-full mt-4 border-b pb-1 text-lg font-medium text-gray-800">
+                Device Information
+              </h3>
+              <InfoItem label="Device Type" value={device.deviceType} />
+              <InfoItem
+                label="Brand / Model"
+                value={`${device.brand} ${device.model}`}
+              />
+              <InfoItem label="Serial Number" value={device.serialNo} />
+              <InfoItem
+                label="Estimated Cost"
+                value={
+                  device.estimatedCost
+                    ? `${device.estimatedCost} ₺`
+                    : "Unspecified"
+                }
+              />
+              <InfoItem
+                label="Total Cost"
+                value={
+                  device.finalCost ? `${device.finalCost} ₺` : "Not calculated"
+                }
+              />
+
+              <h3 className="col-span-full mt-4 border-b pb-1 text-lg font-medium text-gray-800">
+                Customer Information
+              </h3>
+              <InfoItem label="Customer" value={device.customer.name} />
+              <InfoItem label="Phone" value={device.customer.phone} />
+              <InfoItem label="Email" value={device.customer.email || "-"} />
+
+              <h3 className="col-span-full mt-4 border-b pb-1 text-lg font-medium text-gray-800">
+                Fault Description
+              </h3>
+              <p className="col-span-full rounded-md border border-gray-200 bg-gray-50 p-3 text-sm text-gray-700">
+                {device.issueDesc}
+              </p>
+            </div>
+          )}
+
+          {isEditing && (
+            <form onSubmit={handleDetailsUpdate} className="space-y-4">
+              <h3 className="col-span-full border-b pb-1 text-lg font-medium text-gray-800">
+                Device Information
+              </h3>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                  <label
+                    htmlFor="deviceType"
+                    className="block text-sm font-medium text-gray-700"
+                  >
+                    Device Information
+                  </label>
+                  <input
+                    type="text"
+                    name="deviceType"
+                    id="deviceType"
+                    value={editFormData.deviceType}
+                    onChange={handleFormChange}
+                    className="mt-1 input-field"
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor="brand"
+                    className="block text-sm font-medium text-gray-700"
+                  >
+                    Brand
+                  </label>
+                  <input
+                    type="text"
+                    name="brand"
+                    id="brand"
+                    value={editFormData.brand}
+                    onChange={handleFormChange}
+                    className="mt-1 input-field"
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor="model"
+                    className="block text-sm font-medium text-gray-700"
+                  >
+                    Model
+                  </label>
+                  <input
+                    type="text"
+                    name="model"
+                    id="model"
+                    value={editFormData.model}
+                    onChange={handleFormChange}
+                    className="mt-1 input-field"
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor="serialNo"
+                    className="block text-sm font-medium text-gray-700"
+                  >
+                    Serial Number
+                  </label>
+                  <input
+                    type="text"
+                    name="serialNo"
+                    id="serialNo"
+                    value={editFormData.serialNo}
+                    onChange={handleFormChange}
+                    className="mt-1 input-field"
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor="estimatedCost"
+                    className="block text-sm font-medium text-gray-700"
+                  >
+                    Estimated Cost (₺)
+                  </label>
+                  <input
+                    type="number"
+                    step="1"
+                    name="estimatedCost"
+                    id="estimatedCost"
+                    value={editFormData.estimatedCost}
+                    onChange={handleFormChange}
+                    className="mt-1 input-field"
+                  />
+                </div>
+              </div>
+
+              <h3 className="col-span-full mt-4 border-b pb-1 text-lg font-medium text-gray-800">
+                Fault Description
+              </h3>
+              <div>
+                <label htmlFor="issueDesc" className="sr-only">
+                  Fault Description
+                </label>
+                <textarea
+                  name="issueDesc"
+                  id="issueDesc"
+                  value={editFormData.issueDesc}
+                  onChange={handleFormChange}
+                  rows={4}
+                  className="mt-1 input-field"
+                />
+              </div>
+
+              <h3 className="col-span-full mt-4 border-b pb-1 text-lg font-medium text-gray-800">
+                Customer Information
+              </h3>
+              <InfoItem label="Customer" value={device.customer.name} />
+              <InfoItem label="Phone" value={device.customer.phone} />
+
+              <div className="flex justify-end pt-4">
+                <button
+                  type="submit"
+                  disabled={isEditLoading}
+                  className="rounded-md border border-transparent bg-green-600 py-2 px-6 text-sm font-medium text-white shadow-sm hover:bg-green-700 disabled:bg-gray-400 cursor-pointer"
+                >
+                  {isEditLoading ? "Saving..." : "Save Changes"}
+                </button>
+              </div>
+            </form>
+          )}
         </div>
 
         <div className="mt-6 rounded-lg bg-white p-6 shadow-md">
@@ -478,7 +727,7 @@ export default function DeviceDetailPage() {
             Repair History and Costs
           </h2>
           <ul className="divide-y divide-gray-200">
-            {device.repairs.length === 0 ? (
+            {!device.repairs || device.repairs.length === 0 ? (
               <li className="py-3 text-gray-500">
                 No repair record has been added yet.
               </li>

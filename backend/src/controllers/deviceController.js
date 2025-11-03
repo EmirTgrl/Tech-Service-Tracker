@@ -260,7 +260,18 @@ const updateDevice = async (req, res) => {
     const updatedDevice = await prisma.device.update({
       where: { id: parseInt(id) },
       data: updateData,
-      include: { customer: true },
+      include: {
+        customer: true,
+        assignedTechnician: {
+          select: { name: true, email: true },
+        },
+        statusHistory: {
+          orderBy: { createdAt: "desc" },
+          include: { user: { select: { name: true } } },
+        },
+        repairs: true,
+        images: true,
+      },
     });
 
     res.json({

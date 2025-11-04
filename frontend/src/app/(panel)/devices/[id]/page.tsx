@@ -606,7 +606,7 @@ export default function DeviceDetailPage() {
               <InfoItem label="Tracking Code" value={device.trackingCode} />
               <div>
                 <span className="text-sm font-medium text-gray-500">
-                  Mevcut Durum:{" "}
+                  Current Status:{" "}
                 </span>
                 <span
                   className={`ml-1 inline-flex items-center space-x-1 rounded-full px-3 py-1 text-xs font-semibold ${currentStatusStyle.className}`}

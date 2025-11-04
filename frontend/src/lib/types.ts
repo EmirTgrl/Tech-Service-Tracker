@@ -17,6 +17,16 @@ export interface DeviceSummary {
   } | null;
 }
 
+export interface PaginatedDevicesResponse {
+  data: DeviceSummary[];
+  pagination: {
+    totalItems: number;
+    totalPages: number;
+    currentPage: number;
+    itemsPerPage: number;
+  };
+}
+
 export interface Repair {
   id: number;
   description: string;

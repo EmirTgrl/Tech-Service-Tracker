@@ -94,9 +94,18 @@ const createDevice = async (req, res) => {
 };
 
 const getAllDevices = async (req, res) => {
-  const { status, search, technicianId, startDate, endDate } = req.query;
+  const {
+    status,
+    search,
+    technicianId,
+    startDate,
+    endDate,
+    page = 1,
+    limit = 10,
+  } = req.query;
 
   const where = {};
+  const conditions = [];
 
   if (status) {
     const upperStatus = status.toUpperCase();
@@ -120,32 +129,53 @@ const getAllDevices = async (req, res) => {
   }
 
   if (search) {
-    where.OR = [
-      { customer: { name: { contains: search } } },
-      { serialNo: { contains: search } },
-      { model: { contains: search } },
-      { trackingCode: { contains: search } },
-    ];
+    conditions.push({
+      OR: [
+        { customer: { name: { contains: search } } },
+        { serialNo: { contains: search } },
+        { model: { contains: search } },
+        { trackingCode: { contains: search } },
+      ],
+    });
+  }
+  if (conditions.length > 0) {
+    where.AND = conditions;
   }
 
-  try {
-    const devices = await prisma.device.findMany({
-      where: where,
+  const pageNum = parseInt(page);
+  const limitNum = parseInt(limit);
+  const skip = (pageNum - 1) * limitNum;
+  const take = limitNum;
 
-      include: {
-        customer: {
-          select: { name: true, phone: true },
+  try {
+    const [devices, totalCount] = await prisma.$transaction([
+      prisma.device.findMany({
+        where: where,
+        include: {
+          customer: { select: { name: true, phone: true } },
+          assignedTechnician: { select: { name: true } },
         },
-        assignedTechnician: {
-          select: { name: true },
-        },
-      },
-      orderBy: {
-        createdAt: "desc",
+        orderBy: { createdAt: "desc" },
+        skip: skip,
+        take: take,
+      }),
+
+      prisma.device.count({
+        where: where,
+      }),
+    ]);
+
+    const totalPages = Math.ceil(totalCount / take);
+
+    res.json({
+      data: devices,
+      pagination: {
+        totalItems: totalCount,
+        totalPages: totalPages,
+        currentPage: pageNum,
+        itemsPerPage: take,
       },
     });
-
-    res.json(devices);
   } catch (error) {
     console.error("Error fetching devices:", error);
     res

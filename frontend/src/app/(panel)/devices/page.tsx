@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import api from "@/lib/api";
-import { DeviceSummary } from "@/lib/types";
+import { DeviceSummary, PaginatedDevicesResponse } from "@/lib/types";
 import Link from "next/link";
 
 type DeviceStatus = DeviceSummary["currentStatus"];
@@ -29,6 +29,55 @@ const allStatuses: DeviceStatus[] = [
   "DELIVERED",
 ];
 
+const PaginationButtons = ({
+  currentPage,
+  totalPages,
+  onPageChange,
+}: {
+  currentPage: number;
+  totalPages: number;
+  onPageChange: (page: number) => void;
+}) => {
+  const pageNumbers = [];
+  for (let i = 1; i <= totalPages; i++) {
+    pageNumbers.push(i);
+  }
+
+  return (
+    <nav className="mt-6 flex items-center justify-center space-x-1">
+      <button
+        onClick={() => onPageChange(currentPage - 1)}
+        disabled={currentPage === 1}
+        className="rounded-md border bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+      >
+        Prev
+      </button>
+
+      {pageNumbers.map((number) => (
+        <button
+          key={number}
+          onClick={() => onPageChange(number)}
+          className={`rounded-md border px-4 py-2 text-sm font-medium ${
+            currentPage === number
+              ? "border-indigo-600 bg-indigo-600 text-white"
+              : "bg-white text-gray-700 hover:bg-gray-50"
+          }`}
+        >
+          {number}
+        </button>
+      ))}
+
+      <button
+        onClick={() => onPageChange(currentPage + 1)}
+        disabled={currentPage === totalPages}
+        className="rounded-md border bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+      >
+        Next
+      </button>
+    </nav>
+  );
+};
+
 export default function DevicesPage() {
   const [devices, setDevices] = useState<DeviceSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -38,6 +87,12 @@ export default function DevicesPage() {
   const [debouncedQuery, setDebouncedQuery] = useState("");
 
   const [statusFilter, setStatusFilter] = useState<DeviceStatus | "">("");
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const [paginationData, setPaginationData] = useState({
+    totalPages: 1,
+    totalItems: 0,
+  });
 
   useEffect(() => {
     const timerId = setTimeout(() => {
@@ -62,11 +117,18 @@ export default function DevicesPage() {
         params.append("status", statusFilter);
       }
 
+      params.append("page", currentPage.toString());
+      params.append("limit", "10");
+
       try {
-        const response = await api.get("/devices", {
+        const response = await api.get<PaginatedDevicesResponse>("/devices", {
           params: params,
         });
-        setDevices(response.data);
+        setDevices(response.data.data);
+        setPaginationData({
+          totalPages: response.data.pagination.totalPages,
+          totalItems: response.data.pagination.totalItems,
+        });
       } catch (err: unknown) {
         console.error("Error fetching devices:", err);
         setError(
@@ -79,7 +141,12 @@ export default function DevicesPage() {
     };
 
     fetchDevices();
-  }, [debouncedQuery, statusFilter]);
+  }, [debouncedQuery, statusFilter, currentPage]);
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    window.scrollTo(0, 0);
+  };
 
   if (isLoading) {
     return <div className="text-center text-gray-700">Devices Loading...</div>;
@@ -199,6 +266,15 @@ export default function DevicesPage() {
               ))
             )}
           </tbody>
+          {!isLoading &&
+            devices.length > 0 &&
+            paginationData.totalPages > 1 && (
+              <PaginationButtons
+                currentPage={currentPage}
+                totalPages={paginationData.totalPages}
+                onPageChange={handlePageChange}
+              />
+            )}
         </table>
       </div>
     </div>

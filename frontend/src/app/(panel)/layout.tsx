@@ -4,7 +4,13 @@ import React, { ReactNode } from "react";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { useAuth } from "@/contexts/AuthContext";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
+import {
+  LuLayoutDashboard,
+  LuHardDrive,
+  LuSquare,
+  LuUsers,
+} from "react-icons/lu";
 
 const Header = () => {
   const { user, logout } = useAuth();
@@ -44,45 +50,82 @@ const Header = () => {
 
 const Sidebar = () => {
   const { user } = useAuth();
+  const pathname = usePathname();
+
+  const menuItems = [
+    {
+      href: "/dashboard",
+      label: "Dashboard",
+      icon: LuLayoutDashboard,
+      role: ["ADMIN", "TECHNICIAN"],
+    },
+    {
+      href: "/devices",
+      label: "Device List",
+      icon: LuHardDrive,
+      role: ["ADMIN", "TECHNICIAN"],
+    },
+    {
+      href: "/devices/new",
+      label: "New Service Registration",
+      icon: LuSquare,
+      role: ["ADMIN", "TECHNICIAN"],
+    },
+    {
+      href: "/users",
+      label: "User Management",
+      icon: LuUsers,
+      role: ["ADMIN"],
+    },
+  ];
+
+  const isActive = (href: string) => {
+    if (pathname === href) {
+      return true;
+    }
+
+    if (
+      href === "/devices" &&
+      pathname.startsWith("/devices") &&
+      pathname !== "/devices/new"
+    ) {
+      return true;
+    }
+
+    return false;
+  };
 
   return (
     <nav className="flex w-64 flex-col bg-gray-800 p-4 text-gray-100">
       <div className="mb-8 text-center text-xl font-bold">Main Menu</div>
-      <ul className="space-y-2">
-        <li>
-          <Link
-            href="/dashboard"
-            className="block rounded-md px-3 py-2 hover:bg-gray-700"
-          >
-            Dashboard
-          </Link>
-        </li>
-        <li>
-          <Link
-            href="/devices"
-            className="block rounded-md px-3 py-2 hover:bg-gray-700"
-          >
-            Device List
-          </Link>
-        </li>
-        <li>
-          <Link
-            href="/devices/new"
-            className="block rounded-md px-3 py-2 hover:bg-gray-700"
-          >
-            New Service Registration
-          </Link>
-        </li>
-        {user?.role === "ADMIN" && (
-          <li>
-            <Link
-              href="/users"
-              className="block rounded-md px-3 py-2 hover:bg-gray-700"
-            >
-              User Management
-            </Link>
-          </li>
-        )}
+      <ul className="flex-1 space-y-2 p-4">
+        {menuItems.map((item) => {
+          if (!user || !item.role.includes(user.role)) {
+            return null;
+          }
+
+          const active = isActive(item.href);
+
+          return (
+            <li key={item.href}>
+              <Link
+                href={item.href}
+                className={`
+                  flex items-center space-x-3 rounded-md px-3 py-2 text-sm font-medium
+                  transition-colors duration-150
+                  ${
+                    active
+                      ? "bg-indigo-600 text-white shadow-inner"
+                      : "text-gray-300 hover:bg-gray-700 hover:text-white"
+                  }
+                `}
+              >
+                <item.icon size={20} />
+                <span>{item.label}</span>
+              </Link>
+            </li>
+          );
+        })}
       </ul>
     </nav>
   );

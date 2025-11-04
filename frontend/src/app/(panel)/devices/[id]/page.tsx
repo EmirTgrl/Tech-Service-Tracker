@@ -6,6 +6,50 @@ import api from "@/lib/api";
 import { DeviceDetail, StatusLog, Repair, DeviceImage } from "@/lib/types";
 import Image from "next/image";
 import Swal from "sweetalert2";
+import {
+  LuLoaderCircle,
+  LuClock,
+  LuCheck,
+  LuTruck,
+  LuWrench,
+} from "react-icons/lu";
+
+type DeviceStatus = DeviceDetail["currentStatus"];
+
+const getStatusStyle = (status: DeviceStatus) => {
+  switch (status) {
+    case "PENDING":
+      return {
+        className: "bg-yellow-100 text-yellow-800",
+        icon: LuClock,
+        label: "Waiting",
+      };
+    case "IN_REPAIR":
+      return {
+        className: "bg-blue-100 text-blue-800",
+        icon: LuWrench,
+        label: "Under Repair",
+      };
+    case "COMPLETED":
+      return {
+        className: "bg-green-100 text-green-800",
+        icon: LuCheck,
+        label: "Completed",
+      };
+    case "DELIVERED":
+      return {
+        className: "bg-gray-100 text-gray-800",
+        icon: LuTruck,
+        label: "Delievered",
+      };
+    default:
+      return {
+        className: "bg-gray-100 text-gray-800",
+        icon: LuLoaderCircle,
+        label: "Unknown",
+      };
+  }
+};
 
 const allStatuses: StatusLog["newStatus"][] = [
   "PENDING",
@@ -401,6 +445,8 @@ export default function DeviceDetailPage() {
     return <div className="text-center text-gray-500">Device not found.</div>;
   }
 
+  const currentStatusStyle = getStatusStyle(device.currentStatus);
+
   return (
     <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
       <div className="lg:col-span-1">
@@ -422,8 +468,11 @@ export default function DeviceDetailPage() {
             <span className="text-sm font-medium text-gray-600">
               Current Status:
             </span>
-            <span className="ml-2 rounded-full bg-blue-100 px-3 py-1 text-sm font-semibold text-blue-800">
-              {device.currentStatus}
+            <span
+              className={`ml-2 inline-flex items-center space-x-1 rounded-full px-3 py-1 text-sm font-semibold ${currentStatusStyle.className}`}
+            >
+              <currentStatusStyle.icon size={16} />
+              <span>{currentStatusStyle.label}</span>
             </span>
           </div>
           <form onSubmit={handleStatusUpdate}>
@@ -555,6 +604,17 @@ export default function DeviceDetailPage() {
           {!isEditing && (
             <div className="grid grid-cols-1 gap-x-4 gap-y-2 sm:grid-cols-2">
               <InfoItem label="Tracking Code" value={device.trackingCode} />
+              <div>
+                <span className="text-sm font-medium text-gray-500">
+                  Mevcut Durum:{" "}
+                </span>
+                <span
+                  className={`ml-1 inline-flex items-center space-x-1 rounded-full px-3 py-1 text-xs font-semibold ${currentStatusStyle.className}`}
+                >
+                  <currentStatusStyle.icon size={14} />
+                  <span>{currentStatusStyle.label}</span>
+                </span>
+              </div>
               <InfoItem label="Current Status" value={device.currentStatus} />
 
               <h3 className="col-span-full mt-4 border-b pb-1 text-lg font-medium text-gray-800">
@@ -769,31 +829,39 @@ export default function DeviceDetailPage() {
           <ul className="space-y-4">
             {device.statusHistory.length === 0 ? (
               <li className="text-gray-500">
-                There is no transaction history yet..
+                There is no transaction history yet.
               </li>
             ) : (
-              device.statusHistory.map((log: StatusLog) => (
-                <li
-                  key={log.id}
-                  className="relative border-l-2 border-gray-300 pl-6 pb-4"
-                >
-                  <span className="absolute -left-[11px] top-1 h-5 w-5 rounded-full bg-indigo-600 ring-4 ring-white"></span>
-                  <div className="flex justify-between items-center">
-                    <span className="font-semibold text-gray-800">
-                      {log.newStatus}
+              device.statusHistory.map((log: StatusLog) => {
+                const logStyle = getStatusStyle(log.newStatus);
+
+                return (
+                  <li
+                    key={log.id}
+                    className="relative border-l-2 border-gray-300 pl-8 pb-4"
+                  >
+                    <span
+                      className={`absolute -left-[15px] top-0 flex h-7 w-7 items-center justify-center rounded-full ring-4 ring-white ${logStyle.className}`}
+                    >
+                      <logStyle.icon size={16} />
                     </span>
-                    <span className="text-xs text-gray-500">
-                      {new Date(log.createdAt).toLocaleString("tr-TR")}
-                    </span>
-                  </div>
-                  <p className="text-sm text-gray-600">
-                    {log.notes || "System registration."}
-                  </p>
-                  <p className="text-xs font-medium text-gray-500">
-                    Transaction Processor: {log.user.name}
-                  </p>
-                </li>
-              ))
+                    <div className="flex justify-between items-center">
+                      <span className="font-semibold text-gray-800">
+                        {logStyle.label}
+                      </span>
+                      <span className="text-xs text-gray-500">
+                        {new Date(log.createdAt).toLocaleString("tr-TR")}
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-600">
+                      {log.notes || "Sistem kaydı."}
+                    </p>
+                    <p className="text-xs font-medium text-gray-500">
+                      Transaction Processor: {log.user.name}
+                    </p>
+                  </li>
+                );
+              })
             )}
           </ul>
         </div>

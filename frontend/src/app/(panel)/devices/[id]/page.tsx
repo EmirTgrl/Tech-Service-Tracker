@@ -11,6 +11,7 @@ import {
   InventoryItem,
   PartUsage,
 } from "@/lib/types";
+import { generateServiceReport } from "@/lib/pdfGenerator";
 import Image from "next/image";
 import Swal from "sweetalert2";
 import {
@@ -21,6 +22,7 @@ import {
   LuWrench,
   LuSearch,
   LuPlus,
+  LuDownload,
 } from "react-icons/lu";
 
 type DeviceStatus = DeviceDetail["currentStatus"];
@@ -790,16 +792,26 @@ export default function DeviceDetailPage() {
             <h2 className="text-xl font-bold text-gray-900">
               Service Registration Details
             </h2>
-            <button
-              onClick={handleEditToggle}
-              className={`rounded-md px-4 py-2 text-sm font-medium cursor-pointer ${
-                isEditing
-                  ? "bg-gray-200 text-gray-800 hover:bg-gray-300"
-                  : "bg-indigo-600 text-white hover:bg-indigo-700"
-              }`}
-            >
-              {isEditing ? "Cancel" : "Edit Device Information"}
-            </button>
+            <div className="flex space-x-2">
+              <button
+                onClick={handleEditToggle}
+                className={`rounded-md px-4 py-2 text-sm font-medium cursor-pointer ${
+                  isEditing
+                    ? "bg-gray-200 text-gray-800 hover:bg-gray-300"
+                    : "bg-indigo-600 text-white hover:bg-indigo-700"
+                }`}
+              >
+                {isEditing ? "Cancel" : "Edit Device Information"}
+              </button>
+
+              <button
+                onClick={() => generateServiceReport(device)}
+                className="flex items-center space-x-2 rounded-md bg-gray-600 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700 cursor-pointer"
+              >
+                <LuDownload size={16} />
+                <span>Download PDF Report</span>
+              </button>
+            </div>
           </div>
 
           {isEditing && editError && (

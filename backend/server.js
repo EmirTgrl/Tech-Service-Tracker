@@ -6,6 +6,7 @@ const authRoutes = require("./src/routes/authRoutes");
 const deviceRoutes = require("./src/routes/deviceRoutes");
 const userRoutes = require("./src/routes/userRoutes");
 const statsRoutes = require("./src/routes/statsRoutes");
+const inventoryRoutes = require("./src/routes/inventoryRoutes");
 
 dotenv.config();
 
@@ -22,6 +23,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/devices", deviceRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/stats", statsRoutes);
+app.use("/api/inventory", inventoryRoutes);
 app.use("/public/uploads", express.static(path.join(__dirname, "uploads")));
 
 // Health Check Endpoint

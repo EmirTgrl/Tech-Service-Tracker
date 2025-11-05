@@ -8,6 +8,7 @@ const {
   updateDeviceStatus,
   addRepairRecord,
   uploadDeviceImage,
+  useInventoryPart,
 } = require("../controllers/deviceController");
 const { uploadSingleImage } = require("../middleware/upload.js");
 const { protect, authorize } = require("../middleware.js");
@@ -44,6 +45,13 @@ router.post(
   authorize(["ADMIN", "TECHNICIAN"]),
   uploadSingleImage,
   uploadDeviceImage
+);
+
+router.post(
+  "/:id/use-part",
+  protect,
+  authorize(["ADMIN", "TECHNICIAN"]),
+  useInventoryPart
 );
 
 module.exports = router;

@@ -80,6 +80,7 @@ export interface DeviceDetail {
   statusHistory: StatusLog[];
   repairs: Repair[];
   images: DeviceImage[];
+  partsUsed: PartUsage[];
 }
 
 export interface UserSummary {
@@ -119,4 +120,27 @@ export interface DashboardStats {
     DELIVERED: number;
   };
   totalCustomers: number;
+}
+
+export interface InventoryItem {
+  id: number;
+  name: string;
+  sku: string;
+  description: string | null;
+  quantity: number;
+  buyPrice: number | null;
+  sellPrice: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PartUsage {
+  id: number;
+  quantityUsed: number;
+  sellPriceAtTimeOfUse: number;
+  createdAt: string;
+  inventoryItem: {
+    name: string;
+    sku: string;
+  };
 }

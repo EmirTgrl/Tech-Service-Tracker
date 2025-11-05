@@ -3,7 +3,14 @@
 import { useState, useEffect, FormEvent, ChangeEvent } from "react";
 import { useParams } from "next/navigation";
 import api from "@/lib/api";
-import { DeviceDetail, StatusLog, Repair, DeviceImage } from "@/lib/types";
+import {
+  DeviceDetail,
+  StatusLog,
+  Repair,
+  DeviceImage,
+  InventoryItem,
+  PartUsage,
+} from "@/lib/types";
 import Image from "next/image";
 import Swal from "sweetalert2";
 import {
@@ -12,6 +19,8 @@ import {
   LuCheck,
   LuTruck,
   LuWrench,
+  LuSearch,
+  LuPlus,
 } from "react-icons/lu";
 
 type DeviceStatus = DeviceDetail["currentStatus"];
@@ -93,6 +102,16 @@ export default function DeviceDetailPage() {
     issueDesc: "",
     estimatedCost: "" as number | string,
   });
+
+  const [partSearch, setPartSearch] = useState("");
+  const [partSearchResults, setPartSearchResults] = useState<InventoryItem[]>(
+    []
+  );
+  const [isPartSearching, setIsPartSearching] = useState(false);
+  const [selectedPart, setSelectedPart] = useState<InventoryItem | null>(null);
+  const [partQuantity, setPartQuantity] = useState<number>(1);
+  const [isPartLoading, setIsPartLoading] = useState(false);
+  const [partError, setPartError] = useState<string | null>(null);
 
   const params = useParams();
   const id = params.id as string;
@@ -427,6 +446,94 @@ export default function DeviceDetailPage() {
     }
   };
 
+  useEffect(() => {
+    if (partSearch.length < 2 || selectedPart) {
+      setPartSearchResults([]);
+      setIsPartSearching(false);
+      return;
+    }
+
+    setIsPartSearching(true);
+    const timerId = setTimeout(() => {
+      api
+        .get("/inventory", { params: { search: partSearch } })
+        .then((response) => {
+          setPartSearchResults(response.data);
+        })
+        .catch(() => {
+          setPartError("An error occurred while searching for parts.");
+        })
+        .finally(() => {
+          setIsPartSearching(false);
+        });
+    }, 500);
+
+    return () => clearTimeout(timerId);
+  }, [partSearch, selectedPart]);
+
+  const handleUsePart = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!selectedPart || partQuantity <= 0) {
+      setPartError("Please select a part and enter a valid quantity.");
+      return;
+    }
+
+    setIsPartLoading(true);
+    setPartError(null);
+
+    try {
+      const response = await api.post(`/devices/${id}/use-part`, {
+        inventoryItemId: selectedPart.id,
+        quantityUsed: partQuantity,
+      });
+
+      const newPartUsage: PartUsage = response.data.partUsage;
+      const newFinalCost: number = response.data.newFinalCost;
+
+      setDevice((prevDevice) => {
+        if (!prevDevice) return null;
+        return {
+          ...prevDevice,
+          finalCost: newFinalCost,
+          partsUsed: [newPartUsage, ...prevDevice.partsUsed],
+        };
+      });
+
+      setSelectedPart(null);
+      setPartSearch("");
+      setPartQuantity(1);
+      setPartSearchResults([]);
+
+      Swal.fire(
+        "Success!",
+        "The part was successfully used and the stock was updated.",
+        "success"
+      );
+    } catch (err: unknown) {
+      console.error("Part usage error:", err);
+      let errorMsg = "An error occurred while using the part.";
+
+      if (
+        err &&
+        typeof err === "object" &&
+        "response" in err &&
+        err.response &&
+        typeof err.response === "object" &&
+        "data" in err.response &&
+        err.response.data &&
+        typeof err.response.data === "object" &&
+        "error" in err.response.data
+      ) {
+        errorMsg = err.response.data.error as string;
+      }
+
+      setPartError(errorMsg);
+      Swal.fire("Error!", errorMsg, "error");
+    } finally {
+      setIsPartLoading(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="text-center text-gray-700">Loading device details...</div>
@@ -520,6 +627,106 @@ export default function DeviceDetailPage() {
           </form>
         </div>
 
+        <div className="rounded-lg bg-white p-6 shadow-md">
+          <h2 className="mb-4 text-xl font-bold text-gray-900">
+            Use Parts from Stock
+          </h2>
+          {partError && (
+            <div className="mb-4 rounded bg-red-100 p-3 text-sm text-red-700">
+              {partError}
+            </div>
+          )}
+
+          <form onSubmit={handleUsePart}>
+            <label
+              htmlFor="partSearch"
+              className="block text-sm font-medium text-gray-700"
+            >
+              Search Part (Name or SKU)
+            </label>
+            {!selectedPart ? (
+              <div className="relative">
+                <input
+                  type="text"
+                  id="partSearch"
+                  className="mt-1 input-field pr-10"
+                  placeholder="iPhone 14 Screen..."
+                  value={partSearch}
+                  onChange={(e) => setPartSearch(e.target.value)}
+                />
+                <LuSearch className="absolute right-3 top-3.5 text-gray-400" />
+                {partSearchResults.length > 0 && (
+                  <ul className="absolute z-10 mt-1 max-h-48 w-full overflow-y-auto rounded-md border border-gray-300 bg-white shadow-lg">
+                    {partSearchResults.map((item) => (
+                      <li
+                        key={item.id}
+                        onClick={() => {
+                          setSelectedPart(item);
+                          setPartSearch(item.name);
+                          setPartSearchResults([]);
+                        }}
+                        className="cursor-pointer p-3 hover:bg-gray-100"
+                      >
+                        <p className="font-medium text-gray-900">{item.name}</p>
+                        <p className="text-sm text-gray-600">
+                          SKU: {item.sku} | Stock: {item.quantity} | Cost:{" "}
+                          {item.sellPrice.toFixed(2)} ₺
+                        </p>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            ) : (
+              <div className="mt-1 flex items-center justify-between rounded-md border border-green-500 bg-green-50 p-3">
+                <div>
+                  <p className="font-semibold text-green-800">
+                    {selectedPart.name}
+                  </p>
+                  <p className="text-sm text-green-700">
+                    Stock: {selectedPart.quantity} | Cost:{" "}
+                    {selectedPart.sellPrice.toFixed(2)} ₺
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedPart(null);
+                    setPartSearch("");
+                  }}
+                  className="text-sm font-medium text-red-600 hover:text-red-800"
+                >
+                  X
+                </button>
+              </div>
+            )}
+
+            <label
+              htmlFor="partQuantity"
+              className="mt-4 block text-sm font-medium text-gray-700"
+            >
+              Number to be used
+            </label>
+            <input
+              type="number"
+              id="partQuantity"
+              min="1"
+              value={partQuantity}
+              onChange={(e) => setPartQuantity(parseInt(e.target.value))}
+              className="mt-1 input-field"
+              disabled={!selectedPart}
+            />
+
+            <button
+              type="submit"
+              disabled={isPartLoading || !selectedPart}
+              className="mt-4 w-full rounded-md bg-blue-600 py-2 px-4 text-white hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed cursor-pointer"
+            >
+              {isPartLoading ? "Being Added..." : "Add Part"}
+            </button>
+          </form>
+        </div>
+
         <div className="mt-6 rounded-lg bg-white p-6 shadow-md">
           <h2 className="mb-4 text-xl font-bold text-gray-900">
             Add Repair/Cost
@@ -541,13 +748,13 @@ export default function DeviceDetailPage() {
               htmlFor="repairDesc"
               className="block text-sm font-medium text-gray-700"
             >
-              Process/Part Performed
+              Description
             </label>
             <input
               type="text"
               id="repairDesc"
               className="mt-1 input-field"
-              placeholder="Ex: Screen replacement"
+              placeholder="Örn: Soldering workmanship, Software installation"
               value={repairDesc}
               onChange={(e) => setRepairDesc(e.target.value)}
             />
@@ -555,7 +762,7 @@ export default function DeviceDetailPage() {
               htmlFor="repairCost"
               className="mt-4 block text-sm font-medium text-gray-700"
             >
-              Cost (₺)
+              Labour Cost (₺)
             </label>
             <input
               type="number"
@@ -569,9 +776,9 @@ export default function DeviceDetailPage() {
             <button
               type="submit"
               disabled={isRepairLoading}
-              className="mt-4 w-full rounded-md bg-green-600 py-2 px-4 text-white hover:bg-green-700 disabled:bg-gray-400 cursor-pointer"
+              className="mt-4 w-full rounded-md bg-green-600 py-2 px-4 text-white hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
             >
-              {isRepairLoading ? "Saving..." : "Add Cost"}
+              {isRepairLoading ? "Recording in progress..." : "Add Labour Cost"}
             </button>
           </form>
         </div>
@@ -786,39 +993,56 @@ export default function DeviceDetailPage() {
           <h2 className="mb-4 text-xl font-bold text-gray-900">
             Repair History and Costs
           </h2>
-          <ul className="divide-y divide-gray-200">
-            {!device.repairs || device.repairs.length === 0 ? (
+          <h3 className="text-lg font-semibold text-gray-800">Parts Used</h3>
+          <ul className="mb-4 divide-y divide-gray-200">
+            {!device.partsUsed || device.partsUsed.length === 0 ? (
               <li className="py-3 text-gray-500">
-                No repair record has been added yet.
+                The part has not yet been used.
               </li>
             ) : (
-              device.repairs.map((repair: Repair) => (
+              device.partsUsed.map((part: PartUsage) => (
                 <li
-                  key={repair.id}
+                  key={`part-${part.id}`}
                   className="flex items-center justify-between py-3"
                 >
                   <div>
                     <p className="font-medium text-gray-800">
-                      {repair.description}
+                      {part.inventoryItem.name} (x{part.quantityUsed})
                     </p>
                     <p className="text-xs text-gray-500">
-                      {new Date(repair.createdAt).toLocaleDateString("tr-TR")}
+                      SKU: {part.inventoryItem.sku}
                     </p>
                   </div>
+                  <span className="text-lg font-bold text-blue-700">
+                    {part.sellPriceAtTimeOfUse.toFixed(2)} ₺
+                  </span>
+                </li>
+              ))
+            )}
+          </ul>
+          <h3 className="text-lg font-semibold text-gray-800">
+            Added Labour/Service
+          </h3>
+          <ul className="mb-4 divide-y divide-gray-200">
+            {!device.repairs || device.repairs.length === 0 ? (
+              <li className="py-3 text-gray-500">
+                Labour costs have not yet been added..
+              </li>
+            ) : (
+              device.repairs.map((repair: Repair) => (
+                <li
+                  key={`repair-${repair.id}`}
+                  className="flex items-center justify-between py-3"
+                >
+                  <p className="font-medium text-gray-800">
+                    {repair.description}
+                  </p>
                   <span className="text-lg font-bold text-green-700">
                     {repair.cost.toFixed(2)} ₺
                   </span>
                 </li>
               ))
             )}
-            <li className="flex items-center justify-between py-3 border-t-2 border-gray-300">
-              <p className="text-lg font-bold text-gray-900">TOTAL</p>
-              <span className="text-2xl font-bold text-green-800">
-                {device.finalCost
-                  ? `${device.finalCost.toFixed(2)} ₺`
-                  : "0.00 ₺"}
-              </span>
-            </li>
           </ul>
         </div>
 

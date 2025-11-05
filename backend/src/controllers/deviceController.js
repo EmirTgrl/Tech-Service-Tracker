@@ -201,6 +201,13 @@ const getDeviceById = async (req, res) => {
         },
         repairs: true,
         images: true,
+        partsUsed: {
+          include: {
+            inventoryItem: {
+              select: { name: true, sku: true },
+            },
+          },
+        },
       },
     });
 
@@ -384,43 +391,51 @@ const updateDeviceStatus = async (req, res) => {
 const addRepairRecord = async (req, res) => {
   const { id } = req.params;
   const { description, cost } = req.body;
+  const deviceId = parseInt(id);
 
   if (!description || cost === undefined || cost === null) {
     return res
       .status(400)
-      .json({ error: "Description and cost are required." });
+      .json({ error: "Explanation (repair) and cost are required." });
   }
 
   try {
-    const newRepair = await prisma.repair.create({
-      data: {
-        deviceId: parseInt(id),
-        description,
-        cost: parseFloat(cost),
-      },
-    });
+    const result = await prisma.$transaction(async (tx) => {
+      const newRepair = await tx.repair.create({
+        data: {
+          deviceId: deviceId,
+          description,
+          cost: parseFloat(cost),
+        },
+      });
 
-    const totalCostResult = await prisma.repair.aggregate({
-      _sum: { cost: true },
-      where: {
-        deviceId: parseInt(id),
-      },
-    });
+      const partCosts = await tx.partUsage.aggregate({
+        _sum: { sellPriceAtTimeOfUse: true },
+        where: { deviceId: deviceId },
+      });
+      const totalPartCost = partCosts._sum.sellPriceAtTimeOfUse || 0;
 
-    const totalFinalCost = totalCostResult._sum.cost || 0;
+      const repairCosts = await tx.repair.aggregate({
+        _sum: { cost: true },
+        where: { deviceId: deviceId },
+      });
+      const totalRepairCost = repairCosts._sum.cost || 0;
 
-    const updatedDevice = await prisma.device.update({
-      where: { id: parseInt(id) },
-      data: {
-        finalCost: totalFinalCost,
-      },
-      select: { id: true, finalCost: true },
+      const newFinalCost = totalPartCost + totalRepairCost;
+      await tx.device.update({
+        where: { id: deviceId },
+        data: {
+          finalCost: newFinalCost,
+        },
+      });
+
+      return { newRepair, newFinalCost };
     });
 
     res.status(201).json({
-      message: "Repair record added successfully.",
-      repair: newRepair,
-      newFinalCost: updatedDevice.finalCost,
+      message: "Repair record successfully added.",
+      repair: result.newRepair,
+      newFinalCost: result.newFinalCost,
     });
   } catch (error) {
     if (error.code === "P2025") {
@@ -489,6 +504,103 @@ const uploadDeviceImage = async (req, res) => {
   }
 };
 
+const useInventoryPart = async (req, res) => {
+  const { id } = req.params;
+  const { inventoryItemId, quantityUsed } = req.body;
+  const deviceId = parseInt(id);
+
+  if (!inventoryItemId || !quantityUsed || parseInt(quantityUsed) <= 0) {
+    return res.status(400).json({
+      error:
+        "Part ID (inventoryItemId) and quantity greater than 0 (quantityUsed) are required.",
+    });
+  }
+
+  const quantityToUse = parseInt(quantityUsed);
+
+  try {
+    const result = await prisma.$transaction(async (tx) => {
+      const item = await tx.inventoryItem.findUnique({
+        where: { id: parseInt(inventoryItemId) },
+      });
+
+      if (!item) {
+        throw new Error("Such a part could not be found in stock.");
+      }
+
+      if (item.quantity < quantityToUse) {
+        throw new Error(
+          `There are insufficient quantities in stock. Remaining: ${item.quantity}`
+        );
+      }
+
+      await tx.inventoryItem.update({
+        where: { id: parseInt(inventoryItemId) },
+        data: {
+          quantity: {
+            decrement: quantityToUse,
+          },
+        },
+      });
+
+      const newPartUsage = await tx.partUsage.create({
+        data: {
+          deviceId: deviceId,
+          inventoryItemId: parseInt(inventoryItemId),
+          quantityUsed: quantityToUse,
+          sellPriceAtTimeOfUse: item.sellPrice,
+        },
+        include: {
+          inventoryItem: {
+            select: { name: true, sku: true },
+          },
+        },
+      });
+
+      const partCosts = await tx.partUsage.aggregate({
+        _sum: {
+          sellPriceAtTimeOfUse: true,
+        },
+        where: { deviceId: deviceId },
+      });
+      const totalPartCost = partCosts._sum.sellPriceAtTimeOfUse || 0;
+
+      const repairCosts = await tx.repair.aggregate({
+        _sum: {
+          cost: true,
+        },
+        where: { deviceId: deviceId },
+      });
+      const totalRepairCost = repairCosts._sum.cost | 0;
+
+      const newFinalCost = totalPartCost + totalRepairCost;
+      await tx.device.update({
+        where: { id: deviceId },
+        data: {
+          finalCost: newFinalCost,
+        },
+      });
+
+      return { newPartUsage, newFinalCost };
+    });
+
+    res.status(201).json({
+      message: "The part was successfully used and the stock was updated.",
+      partUsage: result.newPartUsage,
+      newFinalCost: result.newFinalCost,
+    });
+  } catch (error) {
+    console.error("Part using error", error);
+    if (
+      error.message.includes("There are insufficient quantities in stock.") ||
+      error.message.includes("Such a part could not be found in stock.")
+    ) {
+      return res.status(400).json({ error: error.message });
+    }
+    res.status(500).json({ error: "Server error." });
+  }
+};
+
 module.exports = {
   createDevice,
   getAllDevices,
@@ -498,4 +610,5 @@ module.exports = {
   updateDeviceStatus,
   addRepairRecord,
   uploadDeviceImage,
+  useInventoryPart,
 };

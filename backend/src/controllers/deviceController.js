@@ -158,6 +158,8 @@ const createDevice = async (req, res) => {
 };
 
 const getAllDevices = async (req, res) => {
+  const { role: userRole, id: userId } = req.user;
+
   const {
     status,
     search,
@@ -170,6 +172,14 @@ const getAllDevices = async (req, res) => {
 
   const where = {};
   const conditions = [];
+
+  if (userRole === "TECHNICIAN") {
+    conditions.push({ technicianId: userId });
+  } else if (userRole === "ADMIN") {
+    if (technicianId) {
+      conditions.push({ technicianId: parseInt(technicianId) });
+    }
+  }
 
   if (status) {
     const upperStatus = status.toUpperCase();
@@ -257,7 +267,7 @@ const getDeviceById = async (req, res) => {
       include: {
         customer: true,
         assignedTechnician: {
-          select: { name: true, email: true },
+          select: { id: true, name: true, email: true },
         },
         statusHistory: {
           orderBy: { createdAt: "desc" },
@@ -667,6 +677,81 @@ const useInventoryPart = async (req, res) => {
   }
 };
 
+const assignTechnician = async (req, res) => {
+  const { id } = req.params;
+  const { technicianId } = req.body;
+  const adminId = req.user.id;
+
+  if (!technicianId) {
+    return res.status(400).json({ error: "Technician ID is required" });
+  }
+
+  try {
+    const [technician, device] = await Promise.all([
+      prisma.user.findUnique({ where: { id: parseInt(technicianId) } }),
+      prisma.device.findUnique({
+        where: { id: parseInt(id) },
+        select: { currentStatus: true },
+      }),
+    ]);
+
+    if (!technician || technician.role !== "TECHNICIAN") {
+      return res.status(404).json({
+        error:
+          "No technician could be found to be appointed, or the role is incorrect.",
+      });
+    }
+    if (!device) {
+      return res.status(404).json({ error: "Device not found" });
+    }
+
+    if (
+      device.currentStatus === "COMPLETED" ||
+      device.currentStatus === "DELIVERED"
+    ) {
+      return res.status(400).json({
+        error:
+          "Error: A technician cannot be assigned to a completed or delivered device.",
+      });
+    }
+
+    const [updatedDevice, newLog] = await prisma.$transaction([
+      prisma.device.update({
+        where: { id: parseInt(id) },
+        data: { technicianId: parseInt(technicianId) },
+        include: {
+          assignedTechnician: {
+            select: { id: true, name: true, email: true },
+          },
+        },
+      }),
+
+      prisma.statusLog.create({
+        data: {
+          deviceId: parseInt(id),
+          newStatus: device.currentStatus,
+          notes: `The device has been assigned to the technician named ‘${technician.name}’ by the Administrator.`,
+          userId: adminId,
+        },
+        include: {
+          user: {
+            select: { name: true },
+          },
+        },
+      }),
+    ]);
+
+    res.json({
+      message: "The device has been successfully assigned to the technician.",
+      device: updatedDevice,
+      log: newLog,
+    });
+  } catch (error) {
+    console.error("Device assignment error:", error);
+    res.status(500).json({ error: "Server error." });
+  }
+};
+
 module.exports = {
   createDevice,
   getAllDevices,
@@ -677,4 +762,5 @@ module.exports = {
   addRepairRecord,
   uploadDeviceImage,
   useInventoryPart,
+  assignTechnician,
 };

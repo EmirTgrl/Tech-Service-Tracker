@@ -9,9 +9,10 @@ const {
   addRepairRecord,
   uploadDeviceImage,
   useInventoryPart,
+  assignTechnician,
 } = require("../controllers/deviceController");
 const { uploadSingleImage } = require("../middleware/upload.js");
-const { protect, authorize } = require("../middleware.js");
+const { protect, authorize, checkDeviceAccess } = require("../middleware.js");
 
 const router = express.Router();
 
@@ -21,37 +22,24 @@ router.post("/", protect, authorize(["ADMIN", "TECHNICIAN"]), createDevice);
 
 router.get("/", protect, authorize(["ADMIN", "TECHNICIAN"]), getAllDevices);
 
-router.get("/:id", protect, authorize(["ADMIN", "TECHNICIAN"]), getDeviceById);
+router.put("/:id/assign", protect, authorize(["ADMIN"]), assignTechnician);
 
-router.put("/:id", protect, authorize(["ADMIN", "TECHNICIAN"]), updateDevice);
+router.get("/:id", protect, checkDeviceAccess, getDeviceById);
 
-router.put(
-  "/:id/status",
-  protect,
-  authorize(["ADMIN", "TECHNICIAN"]),
-  updateDeviceStatus
-);
+router.put("/:id", protect, checkDeviceAccess, updateDevice);
 
-router.post(
-  "/:id/repair",
-  protect,
-  authorize(["ADMIN", "TECHNICIAN"]),
-  addRepairRecord
-);
+router.put("/:id/status", protect, checkDeviceAccess, updateDeviceStatus);
+
+router.post("/:id/repair", protect, checkDeviceAccess, addRepairRecord);
+
+router.post("/:id/use-part", protect, checkDeviceAccess, useInventoryPart);
 
 router.post(
   "/:id/upload",
   protect,
-  authorize(["ADMIN", "TECHNICIAN"]),
+  checkDeviceAccess,
   uploadSingleImage,
   uploadDeviceImage
-);
-
-router.post(
-  "/:id/use-part",
-  protect,
-  authorize(["ADMIN", "TECHNICIAN"]),
-  useInventoryPart
 );
 
 module.exports = router;

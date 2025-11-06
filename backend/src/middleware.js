@@ -49,17 +49,50 @@ const authorize = (roles = []) => {
     }
 
     if (roles.length && !roles.includes(req.user.role)) {
-      return res
-        .status(403)
-        .json({
-          error: `Forbidden: This operation requires the ${roles.join(
-            " or "
-          )} permission.`,
-        });
+      return res.status(403).json({
+        error: `Forbidden: This operation requires the ${roles.join(
+          " or "
+        )} permission.`,
+      });
     }
 
     next();
   };
 };
 
-module.exports = { protect, authorize };
+const checkDeviceAccess = async (req, res, next) => {
+  const { role: userRole, id: userId } = req.user;
+  const { id: deviceId } = req.params;
+
+  if (userRole === "ADMIN") {
+    return next();
+  }
+
+  if (userRole === "TECHNICIAN") {
+    try {
+      const device = await prisma.device.findUnique({
+        where: { id: parseInt(deviceId) },
+        select: { technicianId: true },
+      });
+
+      if (!device) {
+        return res.status(404).json({ error: "Device not found" });
+      }
+
+      if (device.technicianId === userId) {
+        return next();
+      }
+
+      return res
+        .status(403)
+        .json({ error: "Access denied. You are not assigned to this device." });
+    } catch (error) {
+      console.error("Device access control error:", error);
+      return res.status(500).json({ error: "Server error." });
+    }
+  }
+
+  return res.status(403).json({ error: "Access denied" });
+};
+
+module.exports = { protect, authorize, checkDeviceAccess };

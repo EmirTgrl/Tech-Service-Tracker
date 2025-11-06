@@ -73,6 +73,7 @@ export interface DeviceDetail {
   };
 
   assignedTechnician: {
+    id: number;
     name: string;
     email: string;
   } | null;

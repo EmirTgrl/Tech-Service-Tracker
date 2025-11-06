@@ -10,7 +10,9 @@ import {
   DeviceImage,
   InventoryItem,
   PartUsage,
+  UserSummary,
 } from "@/lib/types";
+import { useAuth } from "@/contexts/AuthContext";
 import { generateServiceReport } from "@/lib/pdfGenerator";
 import Image from "next/image";
 import Swal from "sweetalert2";
@@ -115,18 +117,35 @@ export default function DeviceDetailPage() {
   const [isPartLoading, setIsPartLoading] = useState(false);
   const [partError, setPartError] = useState<string | null>(null);
 
+  const [technicians, setTechnicians] = useState<UserSummary[]>([]);
+  const [selectedTechId, setSelectedTechId] = useState<string>("");
+  const [isAssignLoading, setIsAssignLoading] = useState(false);
+  const [assignError, setAssignError] = useState<string | null>(null);
+
   const params = useParams();
   const id = params.id as string;
+  const { user: currentUser } = useAuth();
 
   useEffect(() => {
     if (id) {
       const fetchDevice = async () => {
         setIsLoading(true);
         setError(null);
+
         try {
-          const response = await api.get(`/devices/${id}`);
-          const deviceData: DeviceDetail = response.data;
+          const devicePromise = api.get(`/devices/${id}`);
+          const usersPromise =
+            currentUser?.role === "ADMIN"
+              ? api.get("/users")
+              : Promise.resolve(null);
+          const [deviceResponse, usersResponse] = await Promise.all([
+            devicePromise,
+            usersPromise,
+          ]);
+          const deviceData: DeviceDetail = deviceResponse.data;
           setDevice(deviceData);
+          setNewStatus(deviceData.currentStatus);
+          setSelectedTechId(deviceData.assignedTechnician?.id.toString() || "");
 
           setEditFormData({
             deviceType: deviceData.deviceType,
@@ -137,7 +156,12 @@ export default function DeviceDetailPage() {
             estimatedCost: deviceData.estimatedCost || "",
           });
 
-          setNewStatus(response.data.currentStatus);
+          if (usersResponse) {
+            const activeTechnicians = usersResponse.data.filter(
+              (user: UserSummary) => user.role === "TECHNICIAN" && user.isActive
+            );
+            setTechnicians(activeTechnicians);
+          }
         } catch (err: unknown) {
           console.error("Error fetching device details:", err);
           if (
@@ -162,7 +186,7 @@ export default function DeviceDetailPage() {
       };
       fetchDevice();
     }
-  }, [id]);
+  }, [id, currentUser?.role]);
 
   const handleStatusUpdate = async (e: FormEvent) => {
     e.preventDefault();
@@ -536,6 +560,60 @@ export default function DeviceDetailPage() {
     }
   };
 
+  const handleAssignTechnician = async (e: FormEvent) => {
+    e.preventDefault();
+    setIsAssignLoading(true);
+    setAssignError(null);
+
+    if (!selectedTechId) {
+      setAssignError("Please select a technician.");
+      setIsAssignLoading(false);
+      return;
+    }
+
+    try {
+      const response = await api.put(`/devices/${id}/assign`, {
+        technicianId: parseInt(selectedTechId),
+      });
+
+      const updatedDevice: DeviceDetail = response.data.device;
+      const newLogEntry: StatusLog = response.data.log;
+
+      setDevice((prevDevice) => {
+        if (!prevDevice) return null;
+        return {
+          ...prevDevice,
+          assignedTechnician: updatedDevice.assignedTechnician,
+          statusHistory: [newLogEntry, ...prevDevice.statusHistory],
+        };
+      });
+
+      Swal.fire("Assigned!", response.data.message, "success");
+    } catch (err: unknown) {
+      console.error("Assignment error:", err);
+      let errorMsg = "An error occurred during the assignment.";
+
+      if (
+        err &&
+        typeof err === "object" &&
+        "response" in err &&
+        err.response &&
+        typeof err.response === "object" &&
+        "data" in err.response &&
+        err.response.data &&
+        typeof err.response.data === "object" &&
+        "error" in err.response.data
+      ) {
+        errorMsg = err.response.data.error as string;
+      }
+
+      setAssignError(errorMsg);
+      Swal.fire("Error!", errorMsg, "error");
+    } finally {
+      setIsAssignLoading(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="text-center text-gray-700">Loading device details...</div>
@@ -556,9 +634,68 @@ export default function DeviceDetailPage() {
 
   const currentStatusStyle = getStatusStyle(device.currentStatus);
 
+  const isAssignable =
+    device.currentStatus !== "COMPLETED" &&
+    device.currentStatus !== "DELIVERED";
+
   return (
     <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
-      <div className="lg:col-span-1">
+      <div className="lg:col-span-1 space-y-6">
+        {currentUser?.role === "ADMIN" && (
+          <div
+            className={`rounded-lg bg-white p-6 shadow-md ${
+              !isAssignable ? "opacity-60 bg-gray-50" : ""
+            }`}
+          >
+            <h2 className="mb-4 text-xl font-bold text-gray-900">
+              Assignment of Technicians
+            </h2>
+
+            {assignError && (
+              <div className="mb-4 rounded bg-red-100 p-3 text-sm text-red-700">
+                {assignError}
+              </div>
+            )}
+
+            {!isAssignable ? (
+              <p className="text-sm font-medium text-gray-600">
+                As the status of this device is Completed or Delivered, a new
+                technician cannot be assigned.
+              </p>
+            ) : (
+              <form onSubmit={handleAssignTechnician}>
+                <label
+                  htmlFor="technician"
+                  className="block text-sm font-medium text-gray-700"
+                >
+                  Select a Technician
+                </label>
+                <select
+                  id="technician"
+                  className="mt-1 input-field"
+                  value={selectedTechId}
+                  onChange={(e) => setSelectedTechId(e.target.value)}
+                >
+                  <option value="">-- Select Technician --</option>
+                  {technicians.map((tech) => (
+                    <option key={tech.id} value={tech.id}>
+                      {tech.name} ({tech.email})
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="submit"
+                  disabled={isAssignLoading}
+                  className="mt-4 w-full rounded-md bg-orange-600 py-2 px-4 text-white hover:bg-orange-700 disabled:bg-gray-400 cursor-pointer"
+                >
+                  {isAssignLoading
+                    ? "Being assigned..."
+                    : "Assign the technician"}
+                </button>
+              </form>
+            )}
+          </div>
+        )}
         <div className="rounded-lg bg-white p-6 shadow-md">
           <h2 className="mb-4 text-xl font-bold text-gray-900">
             Update Status

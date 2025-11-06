@@ -2,6 +2,70 @@ const prisma = require("../db");
 const fs = require("fs");
 const path = require("path");
 const { generateTrackingCode } = require("../utils/codeGenerator");
+const { sendEmail } = require("../utils/sendEmail");
+
+const sendNotificationEmail = async (deviceId, newStatus) => {
+  if (newStatus !== "COMPLETED" && newStatus !== "IN_REPAIR") {
+    return;
+  }
+
+  try {
+    const device = await prisma.device.findUnique({
+      where: { id: deviceId },
+      include: {
+        customer: { select: { name: true, email: true } },
+      },
+    });
+
+    if (!device || !device.customer.email) {
+      console.log(
+        `Email could not be sent: Device (ID: ${deviceId}) or customer email address could not be found.`
+      );
+      return;
+    }
+
+    let subject = "";
+    let htmlBody = "";
+
+    if (newStatus === "COMPLETED") {
+      subject = `Your device is ready! (Tracking Code: ${device.trackingCode})`;
+      htmlBody = `
+                <p>Hello ${device.customer.name},</p>
+                <p><b>${device.brand} ${device.model}</b> model (${
+        device.trackingCode
+      }) the repair of your device has been completed.</p>
+                <p>You can take your device from our service centre.</p>
+                <p>Total Cost: <b>${
+                  device.finalCost ? device.finalCost.toFixed(2) : "0.00"
+                } TL</b></p>
+                <br>
+                <p>We wish you a good day,<br>Technical Support Team</p>
+            `;
+    } else if (newStatus === "IN_REPAIR") {
+      subject = `Your device has been taken in for repair. (Tracking Code: ${device.trackingCode})`;
+      htmlBody = `
+                <p>Hello ${device.customer.name},</p>
+                <p><b>${device.brand} ${device.model}</b> model (${
+        device.trackingCode
+      }) your device has been examined and is now undergoing repair.</p>
+                <p>Estimated Cost: <b>${
+                  device.estimatedCost
+                    ? device.estimatedCost.toFixed(2)
+                    : "Not specified"
+                } TL</b></p>
+                <br>
+                <p>We wish you a good day,<br>Technical Support Team</p>
+            `;
+    }
+
+    await sendEmail(device.customer.email, subject, htmlBody);
+  } catch (error) {
+    console.error(
+      `An error occurred while sending the email notification (Device ID: ${deviceId}):`,
+      error
+    );
+  }
+};
 
 const createDevice = async (req, res) => {
   const {
@@ -366,6 +430,8 @@ const updateDeviceStatus = async (req, res) => {
         },
       }),
     ]);
+
+    sendNotificationEmail(deviceId, upperStatus);
 
     res.json({
       message: `Device status updated to ${upperStatus} successfully.`,

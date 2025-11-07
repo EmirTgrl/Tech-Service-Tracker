@@ -211,7 +211,7 @@ export default function DevicesPage() {
                 Device
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                Arrival Date
+                Entry Date
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
                 Serial No / Tracking Code

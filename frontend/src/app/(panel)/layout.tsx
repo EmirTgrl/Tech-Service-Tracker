@@ -11,6 +11,7 @@ import {
   LuSquare,
   LuUsers,
   LuArchive,
+  LuContact,
 } from "react-icons/lu";
 
 const Header = () => {
@@ -70,6 +71,12 @@ const Sidebar = () => {
       href: "/devices/new",
       label: "New Service Registration",
       icon: LuSquare,
+      role: ["ADMIN", "TECHNICIAN"],
+    },
+    {
+      href: "/customers",
+      label: "Customer Managemenet",
+      icon: LuContact,
       role: ["ADMIN", "TECHNICIAN"],
     },
     {

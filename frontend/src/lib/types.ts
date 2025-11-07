@@ -145,3 +145,25 @@ export interface PartUsage {
     sku: string;
   };
 }
+
+export interface CustomerSummary {
+  id: number;
+  name: string;
+  phone: string;
+  email: string | null;
+  isActive: boolean;
+  createdAt: string;
+  _count: {
+    devices: number;
+  };
+}
+
+export interface PaginatedCustomersResponse {
+  data: CustomerSummary[];
+  pagination: {
+    totalItems: number;
+    totalPages: number;
+    currentPage: number;
+    itemsPerPage: number;
+  };
+}

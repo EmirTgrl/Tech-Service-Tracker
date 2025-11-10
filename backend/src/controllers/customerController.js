@@ -115,6 +115,9 @@ const getCustomerById = async (req, res) => {
         devices: {
           orderBy: { createdAt: "desc" },
         },
+        _count: {
+          select: { devices: true },
+        },
       },
     });
     if (!customer)

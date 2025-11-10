@@ -167,3 +167,23 @@ export interface PaginatedCustomersResponse {
     itemsPerPage: number;
   };
 }
+
+interface CustomerDeviceEntry {
+  id: number;
+  brand: string;
+  model: string;
+  serialNo: string;
+  currentStatus: "PENDING" | "IN_REPAIR" | "COMPLETED" | "DELIVERED";
+  trackingCode: string;
+  createdAt: string;
+}
+
+export interface CustomerDetail extends CustomerSummary {
+  devices: CustomerDeviceEntry[];
+}
+
+export interface ReportDataItem {
+  name: string;
+  count: number;
+  [key: string]: unknown;
+}

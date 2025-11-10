@@ -1,4 +1,3 @@
-// src/app/(panel)/customers/page.tsx
 "use client";
 
 import { useState, useEffect } from "react";
@@ -6,6 +5,7 @@ import api from "@/lib/api";
 import { CustomerSummary, PaginatedCustomersResponse } from "@/lib/types";
 import { useAuth } from "@/contexts/AuthContext";
 import Swal from "sweetalert2";
+import Link from "next/link";
 
 const PaginationButtons = ({
   currentPage,
@@ -368,8 +368,13 @@ export default function CustomersPage() {
                         : "hover:bg-gray-50"
                     }`}
                   >
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {customer.name}
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <Link
+                        href={`/customers/${customer.id}`}
+                        className="text-indigo-600 hover:text-indigo-900 hover:underline"
+                      >
+                        {customer.name}
+                      </Link>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                       <div>{customer.phone}</div>

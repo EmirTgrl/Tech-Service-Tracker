@@ -12,6 +12,7 @@ import {
   LuUsers,
   LuArchive,
   LuContact,
+  LuChartBar,
 } from "react-icons/lu";
 
 const Header = () => {
@@ -79,6 +80,7 @@ const Sidebar = () => {
       icon: LuContact,
       role: ["ADMIN", "TECHNICIAN"],
     },
+    { href: "/reports", label: "Reports", icon: LuChartBar, role: ["ADMIN"] },
     {
       href: "/inventory",
       label: "Stock Management",

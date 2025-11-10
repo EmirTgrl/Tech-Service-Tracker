@@ -20,7 +20,7 @@ const Header = () => {
 
   const handleLogout = () => {
     logout();
-    router.replace("/login");
+    router.replace("/staff-entrance");
   };
 
   return (

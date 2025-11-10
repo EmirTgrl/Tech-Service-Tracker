@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { LuSearch, LuLogIn } from "react-icons/lu";
+import { LuSearch } from "react-icons/lu";
 
 export default function HomePage() {
   return (
@@ -30,25 +30,6 @@ export default function HomePage() {
               </h2>
               <p className="mt-1 text-gray-600">
                 Check the current status of your device using your service code.
-              </p>
-            </div>
-          </div>
-        </Link>
-
-        <Link
-          href="/login"
-          className="group block rounded-lg bg-white p-8 shadow-lg transition-all duration-300 hover:shadow-xl hover:-translate-y-1"
-        >
-          <div className="flex items-center space-x-4">
-            <div className="rounded-full bg-gray-100 p-4 text-gray-600 transition-colors group-hover:bg-gray-800 group-hover:text-white">
-              <LuLogIn size={32} />
-            </div>
-            <div>
-              <h2 className="text-2xl font-semibold text-gray-900">
-                Staff Login
-              </h2>
-              <p className="mt-1 text-gray-600">
-                Log in to access the control panel.
               </p>
             </div>
           </div>

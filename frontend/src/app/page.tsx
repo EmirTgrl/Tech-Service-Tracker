@@ -15,7 +15,7 @@ export default function HomePage() {
         </p>
       </div>
 
-      <div className="grid w-full max-w-4xl grid-cols-1 gap-8 md:grid-cols-2">
+      <div className="grid w-full max-w-4xl grid-cols-1 gap-8 md:grid-cols-1">
         <Link
           href="/track"
           className="group block rounded-lg bg-white p-8 shadow-lg transition-all duration-300 hover:shadow-xl hover:-translate-y-1"

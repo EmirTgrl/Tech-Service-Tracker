@@ -187,3 +187,29 @@ export interface ReportDataItem {
   count: number;
   [key: string]: unknown;
 }
+
+interface DashboardDeviceItem {
+  id: number;
+  brand: string;
+  model: string | null;
+  createdAt: string;
+  customer: {
+    name: string;
+  };
+}
+
+export interface FullDashboardData {
+  stats: {
+    deviceStats: {
+      PENDING: number;
+      IN_REPAIR: number;
+      COMPLETED: number;
+      DELIVERED: number;
+    };
+    totalCustomers: number;
+  };
+  lists: {
+    unassignedDevices: DashboardDeviceItem[];
+    recentActivity: DashboardDeviceItem[];
+  };
+}

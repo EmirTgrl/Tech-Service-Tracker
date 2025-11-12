@@ -10,6 +10,7 @@ const {
   uploadDeviceImage,
   useInventoryPart,
   assignTechnician,
+  markDeviceAsPaid,
 } = require("../controllers/deviceController");
 const { uploadSingleImage } = require("../middleware/upload.js");
 const { protect, authorize, checkDeviceAccess } = require("../middleware.js");
@@ -33,6 +34,8 @@ router.put("/:id/status", protect, checkDeviceAccess, updateDeviceStatus);
 router.post("/:id/repair", protect, checkDeviceAccess, addRepairRecord);
 
 router.post("/:id/use-part", protect, checkDeviceAccess, useInventoryPart);
+
+router.put("/:id/mark-as-paid", protect, checkDeviceAccess, markDeviceAsPaid);
 
 router.post(
   "/:id/upload",

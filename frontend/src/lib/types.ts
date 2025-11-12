@@ -1,3 +1,5 @@
+export type PaymentStatus = "UNPAID" | "PAID" | "WAIVED";
+
 export interface DeviceSummary {
   id: number;
   trackingCode: string;
@@ -64,6 +66,7 @@ export interface DeviceDetail {
   finalCost: number | null;
   createdAt: string;
   uploadedAt: string;
+  paymentStatus: PaymentStatus;
 
   customer: {
     id: number;

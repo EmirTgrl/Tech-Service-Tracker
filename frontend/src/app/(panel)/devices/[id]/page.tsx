@@ -11,6 +11,7 @@ import {
   InventoryItem,
   PartUsage,
   UserSummary,
+  PaymentStatus,
 } from "@/lib/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { generateServiceReport } from "@/lib/pdfGenerator";
@@ -25,6 +26,8 @@ import {
   LuSearch,
   LuPlus,
   LuDownload,
+  LuCreditCard,
+  LuBadgeCheck,
 } from "react-icons/lu";
 
 type DeviceStatus = DeviceDetail["currentStatus"];
@@ -53,7 +56,7 @@ const getStatusStyle = (status: DeviceStatus) => {
       return {
         className: "bg-gray-100 text-gray-800",
         icon: LuTruck,
-        label: "Delievered",
+        label: "Delivered",
       };
     default:
       return {
@@ -121,6 +124,8 @@ export default function DeviceDetailPage() {
   const [selectedTechId, setSelectedTechId] = useState<string>("");
   const [isAssignLoading, setIsAssignLoading] = useState(false);
   const [assignError, setAssignError] = useState<string | null>(null);
+
+  const [isPaymentLoading, setIsPaymentLoading] = useState(false);
 
   const params = useParams();
   const id = params.id as string;
@@ -614,6 +619,65 @@ export default function DeviceDetailPage() {
     }
   };
 
+  const handleMarkAsPaid = async (statusToSet: PaymentStatus) => {
+    const confirmResult = await Swal.fire({
+      title: `Are you sure?`,
+      text: `The device will be marked as "${statusToSet}" (Paid/Waived).`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Yes, approve!",
+      cancelButtonText: "Cancel",
+    });
+
+    if (!confirmResult.isConfirmed) {
+      return;
+    }
+
+    setIsPaymentLoading(true);
+
+    try {
+      const response = await api.put(`/devices/${id}/mark-as-paid`, {
+        status: statusToSet,
+      });
+
+      const newLogEntry: StatusLog = response.data.log;
+      const newPaymentStatus: PaymentStatus = response.data.paymentStatus;
+
+      setDevice((prevDevice) => {
+        if (!prevDevice) return null;
+        return {
+          ...prevDevice,
+          paymentStatus: newPaymentStatus,
+          statusHistory: [newLogEntry, ...prevDevice.statusHistory],
+        };
+      });
+
+      Swal.fire("Successfull!", response.data.message, "success");
+    } catch (err: unknown) {
+      console.error("Payment status update error:", err);
+      let errorMsg = "An error occurred while changing the payment status.";
+
+      if (
+        err &&
+        typeof err === "object" &&
+        "response" in err &&
+        err.response &&
+        typeof err.response === "object" &&
+        "data" in err.response &&
+        err.response.data &&
+        typeof err.response.data === "object" &&
+        "error" in err.response.data
+      ) {
+        errorMsg = err.response.data.error as string;
+      }
+
+      setPartError(errorMsg);
+      Swal.fire("Error!", errorMsg, "error");
+    } finally {
+      setIsPartLoading(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="text-center text-gray-700">Loading device details...</div>
@@ -637,6 +701,11 @@ export default function DeviceDetailPage() {
   const isAssignable =
     device.currentStatus !== "COMPLETED" &&
     device.currentStatus !== "DELIVERED";
+
+  const canBePaid =
+    device.currentStatus === "COMPLETED" && device.paymentStatus === "UNPAID";
+  const canBeDelivered =
+    device.paymentStatus === "PAID" || device.paymentStatus === "WAIVED";
 
   return (
     <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
@@ -698,6 +767,61 @@ export default function DeviceDetailPage() {
         )}
         <div className="rounded-lg bg-white p-6 shadow-md">
           <h2 className="mb-4 text-xl font-bold text-gray-900">
+            Payment Status
+          </h2>
+
+          {canBePaid && (
+            <div className="space-y-3">
+              <p className="text-sm text-gray-600">
+                The repair of this device has been completed but payment has not
+                yet been received.
+              </p>
+              <p className="text-2xl font-bold text-red-600">
+                Customer Payment:{" "}
+                {device.finalCost ? device.finalCost.toFixed(2) : "0.00"} ₺
+              </p>
+              <button
+                onClick={() => handleMarkAsPaid("PAID")}
+                disabled={isPaymentLoading}
+                className="flex w-full items-center justify-center space-x-2 rounded-md bg-green-600 py-2 px-4 text-white hover:bg-green-700 disabled:bg-gray-400 cursor-pointer"
+              >
+                <LuCreditCard size={18} />
+                <span>Mark as Payment Received</span>
+              </button>
+              <button
+                onClick={() => handleMarkAsPaid("WAIVED")}
+                disabled={isPaymentLoading}
+                className="flex w-full items-center justify-center space-x-2 rounded-md bg-gray-600 py-2 px-4 text-white hover:bg-gray-700 disabled:bg-gray-400 cursor-pointer"
+              >
+                <span>Waived (Guarantee/Cancellation)</span>
+              </button>
+            </div>
+          )}
+
+          {(device.paymentStatus === "PAID" ||
+            device.paymentStatus === "WAIVED") && (
+            <div className="flex flex-col items-center text-center">
+              <LuBadgeCheck size={48} className="text-green-500" />
+              <p className="mt-2 text-lg font-semibold text-gray-800">
+                {device.paymentStatus === "PAID"
+                  ? "Payment Received"
+                  : "Waiver of Fees"}
+              </p>
+              <p className="text-sm text-gray-600">
+                This device is ready for delivery..
+              </p>
+            </div>
+          )}
+
+          {device.currentStatus !== "COMPLETED" && (
+            <p className="text-sm font-medium text-gray-500">
+              In order to receive payment, the device status must be marked as
+              Completed.
+            </p>
+          )}
+        </div>
+        <div className="rounded-lg bg-white p-6 shadow-md">
+          <h2 className="mb-4 text-xl font-bold text-gray-900">
             Update Status
           </h2>
           {statusSuccess && (
@@ -737,8 +861,15 @@ export default function DeviceDetailPage() {
               }
             >
               {allStatuses.map((status) => (
-                <option key={status} value={status}>
-                  {status}
+                <option
+                  key={status}
+                  value={status}
+                  disabled={status === "DELIVERED" && !canBeDelivered}
+                >
+                  {status}{" "}
+                  {status === "DELIVERED" && !canBeDelivered
+                    ? "(Payment Required in Advance)"
+                    : ""}
                 </option>
               ))}
             </select>

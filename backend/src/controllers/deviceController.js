@@ -408,6 +408,7 @@ const updateDevice = async (req, res) => {
 const updateDeviceStatus = async (req, res) => {
   const { id } = req.params;
   const { newStatus, notes } = req.body;
+  const deviceId = parseInt(id);
 
   if (!newStatus) {
     return res.status(400).json({ error: "New status is required" });
@@ -416,9 +417,23 @@ const updateDeviceStatus = async (req, res) => {
   const upperStatus = newStatus.toUpperCase();
 
   try {
+    if (upperStatus === "DELIVERED") {
+      const device = await prisma.device.findUnique({
+        where: { id: deviceId },
+        select: { paymentStatus: true },
+      });
+
+      if (device && device.paymentStatus === "UNPAID") {
+        return res.status(400).json({
+          error:
+            "The device cannot be delivered! The payment must first be marked as (PAID) or (WAIVED).",
+        });
+      }
+    }
+
     const [updatedDevice, newLog] = await prisma.$transaction([
       prisma.device.update({
-        where: { id: parseInt(id) },
+        where: { id: deviceId },
         data: {
           currentStatus: upperStatus,
           technicianId: upperStatus === "DELIVERED" ? null : undefined,
@@ -752,6 +767,63 @@ const assignTechnician = async (req, res) => {
   }
 };
 
+const markDeviceAsPaid = async (req, res) => {
+  const { id } = req.params;
+  const { status = "PAID" } = req.body;
+  const userId = req.user.id;
+
+  if (status !== "PAID" && status !== "WAIVED") {
+    return res.status(400).json({
+      error: "Invalid payment status. Must be either 'PAID' or 'WAIVED'.",
+    });
+  }
+
+  try {
+    const device = await prisma.device.findUnique({
+      where: { id: parseInt(id) },
+      select: { currentStatus: true, finalCost: true },
+    });
+
+    if (!device) {
+      return res.status(404).json({ error: "Device not found." });
+    }
+
+    if (device.currentStatus !== "COMPLETED") {
+      return res.status(400).json({
+        error: 'The device status must be "Completed" to receive payment.',
+      });
+    }
+
+    const [updatedDevice, newLog] = await prisma.$transaction([
+      prisma.device.update({
+        where: { id: parseInt(id) },
+        data: { paymentStatus: status },
+      }),
+
+      prisma.statusLog.create({
+        data: {
+          deviceId: parseInt(id),
+          newStatus: "COMPLETED",
+          notes: `Payment received. (Status: ${status}). Cost: ${
+            device.finalCost || 0
+          } TL.`,
+          userId: userId,
+        },
+        include: { user: { select: { name: true } } },
+      }),
+    ]);
+
+    res.json({
+      message: `The payment status has been successfully updated to "${status}".`,
+      paymentStatus: updatedDevice.paymentStatus,
+      log: newLog,
+    });
+  } catch (error) {
+    console.error("Payment marking error:", error);
+    res.status(500).json({ error: "Server error." });
+  }
+};
+
 module.exports = {
   createDevice,
   getAllDevices,
@@ -763,4 +835,5 @@ module.exports = {
   uploadDeviceImage,
   useInventoryPart,
   assignTechnician,
+  markDeviceAsPaid,
 };

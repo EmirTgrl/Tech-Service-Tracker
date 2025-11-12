@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE `device` ADD COLUMN `paymentStatus` ENUM('UNPAID', 'PAID', 'WAIVED') NOT NULL DEFAULT 'UNPAID';

@@ -20,6 +20,12 @@ enum Status {
   DELIVERED
 }
 
+enum PaymentStatus {
+  UNPAID
+  PAID
+  WAIVED
+}
+
 model User {
   id          Int         @id @default(autoincrement())
   name        String      @db.VarChar(100)
@@ -66,7 +72,8 @@ model Device {
   // Tracking and Cost
   currentStatus   Status      @default(PENDING)
   estimatedCost   Float?      
-  finalCost       Float?      
+  finalCost       Float?
+  paymentStatus   PaymentStatus @default(UNPAID)   
   
   assignedTechnician User?    @relation(fields: [technicianId], references: [id])
   technicianId    Int?

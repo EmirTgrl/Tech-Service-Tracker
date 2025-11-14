@@ -13,6 +13,8 @@ import {
   LuArchive,
   LuContact,
   LuChartBar,
+  LuLogOut,
+  LuUser,
 } from "react-icons/lu";
 
 const Header = () => {
@@ -40,7 +42,8 @@ const Header = () => {
               onClick={handleLogout}
               className="rounded-md bg-red-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-600 cursor-pointer"
             >
-              Log Out
+              <LuLogOut size={16} />
+              <span>LogOut</span>
             </button>
           </>
         ) : (
@@ -112,37 +115,64 @@ const Sidebar = () => {
   };
 
   return (
-    <nav className="flex w-64 flex-col bg-gray-800 p-4 text-gray-100">
-      <div className="mb-8 text-center text-xl font-bold">Main Menu</div>
-      <ul className="flex-1 space-y-2 p-4">
-        {menuItems.map((item) => {
-          if (!user || !item.role.includes(user.role)) {
-            return null;
-          }
+    <nav className="flex h-screen w-64 flex-col justify-between bg-gray-900 text-gray-300">
+      <div>
+        <div className="flex h-16 items-center justify-center border-b border-gray-700 px-4">
+          <span className="text-xl font-bold text-white">Main Menu</span>
+        </div>
 
-          const active = isActive(item.href);
+        <ul className="space-y-2 p-4">
+          {menuItems.map((item) => {
+            if (!user || !item.role.includes(user.role)) {
+              return null;
+            }
 
-          return (
-            <li key={item.href}>
-              <Link
-                href={item.href}
-                className={`
-                  flex items-center space-x-3 rounded-md px-3 py-2 text-sm font-medium
-                  transition-colors duration-150
-                  ${
-                    active
-                      ? "bg-indigo-600 text-white shadow-inner"
-                      : "text-gray-300 hover:bg-gray-700 hover:text-white"
-                  }
-                `}
-              >
-                <item.icon size={20} />
-                <span>{item.label}</span>
-              </Link>
-            </li>
-          );
-        })}
-      </ul>
+            const active = isActive(item.href);
+
+            return (
+              <li key={item.href}>
+                <Link
+                  href={item.href}
+                  className={`
+                    flex items-center space-x-3 rounded-md px-3 py-2 text-sm font-medium
+                    transition-colors duration-150
+                    ${
+                      active
+                        ? "bg-indigo-600 text-white shadow-inner"
+                        : "text-gray-300 hover:bg-gray-700 hover:text-white"
+                    }
+                  `}
+                >
+                  <item.icon size={20} />
+                  <span>{item.label}</span>
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+
+      <div className="border-t border-gray-700 p-4">
+        <ul className="space-y-2">
+          <li>
+            <Link
+              href="/profile"
+              className={`
+                flex items-center space-x-3 rounded-md px-3 py-2 text-sm font-medium
+                transition-colors duration-150
+                ${
+                  pathname === "/profile"
+                    ? "bg-indigo-600 text-white shadow-inner"
+                    : "text-gray-300 hover:bg-gray-700 hover:text-white"
+                }
+              `}
+            >
+              <LuUser size={20} />
+              <span>My Profile</span>
+            </Link>
+          </li>
+        </ul>
+      </div>
     </nav>
   );
 };

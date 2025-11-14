@@ -237,7 +237,6 @@ export default function DashboardPage() {
                     outerRadius={100}
                     dataKey="count"
                     nameKey="name"
-                    label={(entry) => `${entry.name}: ${entry.value}`}
                   >
                     {pieChartData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.fill as string} />

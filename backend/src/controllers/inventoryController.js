@@ -1,4 +1,5 @@
 const prisma = require("../db");
+const { logActivity } = require('../utils/logger');
 
 const createInventoryItem = async (req, res) => {
   const { name, sku, description, quantity, buyPrice, sellPrice } = req.body;
@@ -19,6 +20,12 @@ const createInventoryItem = async (req, res) => {
         buyPrice: buyPrice ? parseFloat(buyPrice) : null,
         sellPrice: parseFloat(sellPrice),
       },
+    });
+
+    logActivity(req.user.id, "INVENTORY_CREATE", "InventoryItem", newItem.id, {
+      name: newItem.name,
+      sku: newItem.sku,
+      quantity: newItem.quantity,
     });
     res.status(201).json(newItem);
   } catch (error) {
@@ -85,6 +92,15 @@ const updateInventoryItem = async (req, res) => {
       where: { id: parseInt(id) },
       data: updateData,
     });
+
+    logActivity(
+      req.user.id,
+      "INVENTORY_UPDATE",
+      "InventoryItem",
+      updatedItem.id,
+      { updatedFields: Object.keys(updateData) }
+    );
+
     res.json(updatedItem);
   } catch (error) {
     if (error.code === "P2025") {
@@ -103,9 +119,27 @@ const updateInventoryItem = async (req, res) => {
 const deleteInventoryItem = async (req, res) => {
   const { id } = req.params;
   try {
+    const itemToDelete = await prisma.inventoryItem.findUnique({
+      where: { id: parseInt(id) },
+      select: { name: true, sku: true },
+    });
+
+    if (!itemToDelete) {
+      return res.status(404).json({ error: "No item to be deleted found." });
+    }
+
     await prisma.inventoryItem.delete({
       where: { id: parseInt(id) },
     });
+
+    logActivity(
+      req.user.id,
+      "INVENTORY_DELETE",
+      "InventoryItem",
+      parseInt(id),
+      { deletedName: itemToDelete.name, deletedSku: itemToDelete.sku }
+    );
+
     res.status(204).send();
   } catch (error) {
     if (error.code === "P2025") {

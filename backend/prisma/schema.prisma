@@ -37,6 +37,7 @@ model User {
   // Relations
   assignedDevices Device[]
   statusLogs      StatusLog[]
+  auditLogs       AuditLog[]
   
   createdAt   DateTime    @default(now())
 }
@@ -159,4 +160,23 @@ model PartUsage {
   sellPriceAtTimeOfUse Float
   
   createdAt DateTime @default(now())
+}
+
+model AuditLog {
+  id        Int      @id @default(autoincrement())
+  
+  actor     User     @relation(fields: [actorId], references: [id], onDelete: Restrict)
+  actorId   Int
+  
+  action    String   @db.VarChar(100)
+  
+  entityType String  @db.VarChar(100)
+  entityId   Int
+  
+  details   Json?
+  
+  createdAt DateTime @default(now())
+
+  @@index([actorId])
+  @@index([entityType, entityId])
 }

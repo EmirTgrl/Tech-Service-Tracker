@@ -15,6 +15,7 @@ import {
   LuChartBar,
   LuLogOut,
   LuUser,
+  LuFileText,
 } from "react-icons/lu";
 
 const Header = () => {
@@ -94,6 +95,12 @@ const Sidebar = () => {
       href: "/users",
       label: "User Management",
       icon: LuUsers,
+      role: ["ADMIN"],
+    },
+    {
+      href: "/audit-logs",
+      label: "Audit Logs",
+      icon: LuFileText,
       role: ["ADMIN"],
     },
   ];

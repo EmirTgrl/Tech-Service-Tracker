@@ -3,6 +3,7 @@ const fs = require("fs");
 const path = require("path");
 const { generateTrackingCode } = require("../utils/codeGenerator");
 const { sendEmail } = require("../utils/sendEmail");
+const { logActivity } = require("../utils/logger");
 
 const sendNotificationEmail = async (deviceId, newStatus) => {
   if (newStatus !== "COMPLETED" && newStatus !== "IN_REPAIR") {
@@ -136,6 +137,11 @@ const createDevice = async (req, res) => {
         customer: true,
         statusHistory: true,
       },
+    });
+
+    logActivity(req.user.id, "DEVICE_CREATE", "Device", newDevice.id, {
+      trackingCode: newDevice.trackingCode,
+      customerId: newDevice.customerId,
     });
 
     res.status(201).json({
@@ -385,6 +391,14 @@ const updateDevice = async (req, res) => {
       },
     });
 
+    logActivity(
+      req.user.id,
+      "DEVICE_UPDATE_DETAILS",
+      "Device",
+      updatedDevice.id,
+      { old: oldDevice, new: updateData }
+    );
+
     res.json({
       message: "Device record updated successfully",
       device: updatedDevice,
@@ -523,6 +537,12 @@ const addRepairRecord = async (req, res) => {
       return { newRepair, newFinalCost };
     });
 
+    logActivity(req.user.id, "REPAIR_ADD", "Device", deviceId, {
+      repairId: result.newRepair.id,
+      description: result.newRepair.description,
+      cost: result.newRepair.cost,
+    });
+
     res.status(201).json({
       message: "Repair record successfully added.",
       repair: result.newRepair,
@@ -571,6 +591,11 @@ const uploadDeviceImage = async (req, res) => {
         imageUrl: imageUrl,
         description: description || null,
       },
+    });
+
+    logActivity(req.user.id, "IMAGE_UPLOAD", "Device", deviceId, {
+      imageId: newImage.id,
+      imageUrl: newImage.imageUrl,
     });
 
     res.status(201).json({
@@ -673,6 +698,13 @@ const useInventoryPart = async (req, res) => {
       });
 
       return { newPartUsage, newFinalCost };
+    });
+
+    logActivity(req.user.id, "PART_USAGE_ADD", "Device", deviceId, {
+      partUsageId: result.newPartUsage.id,
+      inventoryItemId: result.newPartUsage.inventoryItemId,
+      quantity: result.newPartUsage.quantityUsed,
+      cost: result.newPartUsage.sellPriceAtTimeOfUse,
     });
 
     res.status(201).json({

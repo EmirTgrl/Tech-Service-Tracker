@@ -1,4 +1,5 @@
 const prisma = require("../db");
+const { logActivity } = require("../utils/logger");
 
 const getAllCustomers = async (req, res) => {
   const { search, page = 1, limit = 10, includeInactive } = req.query;
@@ -67,6 +68,12 @@ const createCustomer = async (req, res) => {
         },
       },
     });
+
+    logActivity(req.user.id, "CUSTOMER_CREATE", "Customer", newCustomer.id, {
+      name: newCustomer.name,
+      phone: newCustomer.phone,
+    });
+
     res.status(201).json(newCustomer);
   } catch (error) {
     if (error.code === "P2002") {
@@ -81,6 +88,14 @@ const createCustomer = async (req, res) => {
 const updateCustomer = async (req, res) => {
   const { id } = req.params;
   const { name, phone, email, isActive } = req.body;
+
+  const oldCustomer = await prisma.customer.findUnique({
+    where: { id: parseInt(id) },
+    select: { name: true, phone: true, email: true, isActive: true },
+  });
+  if (!oldCustomer)
+    return res.status(404).json({ error: "No customer found." });
+
   try {
     const updatedCustomer = await prisma.customer.update({
       where: { id: parseInt(id) },
@@ -91,6 +106,15 @@ const updateCustomer = async (req, res) => {
         },
       },
     });
+
+    logActivity(
+      req.user.id,
+      "CUSTOMER_UPDATE",
+      "Customer",
+      updatedCustomer.id,
+      { old: oldCustomer, new: updateData }
+    );
+
     res.json(updatedCustomer);
   } catch (error) {
     if (error.code === "P2025") {
@@ -135,6 +159,12 @@ const deactivateCustomer = async (req, res) => {
       where: { id: parseInt(id) },
       data: { isActive: false },
     });
+
+    logActivity(req.user.id, "CUSTOMER_DEACTIVATE", "Customer", customer.id, {
+      name: customer.name,
+      phone: customer.phone,
+    });
+
     res
       .status(200)
       .json({ message: "The customer has been successfully deactivated." });

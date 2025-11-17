@@ -216,3 +216,27 @@ export interface FullDashboardData {
     recentActivity: DashboardDeviceItem[];
   };
 }
+
+export interface AuditLogEntry {
+  id: number;
+  actorId: number;
+  action: string;
+  entityType: string;
+  entityId: number;
+  details: unknown;
+  createdAt: string;
+  actor: {
+    name: string;
+    email: string;
+  };
+}
+
+export interface PaginatedAuditLogsResponse {
+  data: AuditLogEntry[];
+  pagination: {
+    totalItems: number;
+    totalPages: number;
+    currentPage: number;
+    itemsPerPage: number;
+  };
+}

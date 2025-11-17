@@ -1,5 +1,6 @@
 const prisma = require("../db");
 const bcrypt = require("bcryptjs");
+const { logActivity } = require("../utils/logger");
 
 const getAllUsers = async (req, res) => {
   const { includeInactive } = req.query;
@@ -84,6 +85,10 @@ const updateUser = async (req, res) => {
       },
     });
 
+    logActivity(req.user.id, "USER_UPDATE", "User", updatedUser.id, {
+      updatedFields: Object.keys(updateData),
+    });
+
     res.json({ message: "User updated successfully.", user: updatedUser });
   } catch (error) {
     if (error.code === "P2025") {
@@ -103,6 +108,10 @@ const deactivateUser = async (req, res) => {
       where: { id: parseInt(id) },
       data: { isActive: false },
       select: { id: true, name: true, isActive: true },
+    });
+
+    logActivity(req.user.id, "USER_DEACTIVATE", "User", deactivatedUser.id, {
+      deactivatedName: deactivatedUser.name,
     });
 
     res.json({

@@ -7,15 +7,17 @@ import AdminGuard from "@/components/AdminGuard";
 import {
   BarChart,
   Bar,
+  PieChart,
+  Pie,
+  Cell,
+  LineChart,
+  Line,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   Legend,
   ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
 } from "recharts";
 
 const COLORS = [
@@ -30,6 +32,7 @@ const COLORS = [
 export default function ReportsPage() {
   const [techData, setTechData] = useState<ReportDataItem[]>([]);
   const [brandData, setBrandData] = useState<ReportDataItem[]>([]);
+  const [incomeData, setIncomeData] = useState<ReportDataItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -40,14 +43,15 @@ export default function ReportsPage() {
       try {
         const techPromise = api.get("/reports/technician-performance");
         const brandPromise = api.get("/reports/most-repaired-brands");
+        const incomePromise = api.get("/reports/monthly-income");
 
-        const [techResponse, brandResponse] = await Promise.all([
-          techPromise,
-          brandPromise,
-        ]);
+        const [techResponse, brandResponse, incomeResponse] = await Promise.all(
+          [techPromise, brandPromise, incomePromise]
+        );
 
         setTechData(techResponse.data);
         setBrandData(brandResponse.data);
+        setIncomeData(incomeResponse.data);
       } catch (err: unknown) {
         console.error("Report data fetch error:", err);
         let errorMessage = "An error occurred while loading report data.";
@@ -97,6 +101,42 @@ export default function ReportsPage() {
     <AdminGuard>
       <div className="space-y-8">
         <h1 className="text-3xl font-bold text-gray-900">Advanced Reports</h1>
+
+        <div className="rounded-lg bg-white p-6 shadow-md">
+          <h2 className="mb-6 text-xl font-bold text-gray-900">
+            Monthly Income Chart (Devices with Payments Received)
+          </h2>
+          {incomeData.length > 0 ? (
+            <div style={{ width: "100%", height: 300 }}>
+              <ResponsiveContainer>
+                <LineChart
+                  data={incomeData}
+                  margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" />
+                  <YAxis />
+                  <Tooltip
+                    formatter={(value: number) => [
+                      `${value.toFixed(2)} TL`,
+                      "Income",
+                    ]}
+                  />
+                  <Legend />
+                  <Line
+                    type="monotone"
+                    dataKey="count"
+                    stroke="#10B981"
+                    strokeWidth={2}
+                    name="Monthly Income (TL)"
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <p className="text-gray-500">No financial data found to display.</p>
+          )}
+        </div>
 
         <div className="rounded-lg bg-white p-6 shadow-md">
           <h2 className="mb-6 text-xl font-bold text-gray-900">

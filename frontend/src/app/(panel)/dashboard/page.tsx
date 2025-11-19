@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import api from "@/lib/api";
 import { FullDashboardData, ReportDataItem } from "@/lib/types";
 import Link from "next/link";
-import { LuPlus, LuUserPlus, LuArchive } from "react-icons/lu";
+import { LuPlus, LuUserPlus, LuArchive, LuRefreshCw } from "react-icons/lu";
 import {
   PieChart,
   Pie,
@@ -93,24 +93,34 @@ export default function DashboardPage() {
   const [data, setData] = useState<FullDashboardData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   useEffect(() => {
-    const fetchDashboardData = async () => {
-      setIsLoading(true);
-      setError(null);
+    const fetchDashboardData = async (isBackground = false) => {
+      if (!isBackground) setIsLoading(true);
+
       try {
         const response = await api.get<FullDashboardData>(
           "/stats/dashboard/full"
         );
         setData(response.data);
+        setLastUpdated(new Date());
+        setError(null);
       } catch (err) {
         console.error("Dashboard data retrieval error:", err);
-        setError("Dashboard data could not be loaded.");
+        if (!isBackground) setError("Dashboard data could not be loaded.");
       } finally {
-        setIsLoading(false);
+        if (!isBackground) setIsLoading(false);
       }
     };
+
     fetchDashboardData();
+
+    const intervalId = setInterval(() => {
+      fetchDashboardData(true);
+    }, 30000);
+
+    return () => clearInterval(intervalId);
   }, []);
 
   const pieChartData: ReportDataItem[] = data
@@ -154,6 +164,12 @@ export default function DashboardPage() {
       <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+          {lastUpdated && (
+            <span className="flex items-center text-xs font-medium text-gray-500 animate-pulse">
+              <LuRefreshCw className="mr-1 h-3 w-3" />
+              Live (Last: {lastUpdated.toLocaleTimeString("tr-TR")})
+            </span>
+          )}
           <p className="mt-2 text-lg text-gray-600">
             Welcome, {user?.name}! Here is the current status of the service.
           </p>

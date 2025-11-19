@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import api from "@/lib/api";
 import { DeviceSummary, PaginatedDevicesResponse } from "@/lib/types";
 import Link from "next/link";
+import { exportToExcel } from "@/lib/excelExporter";
+import { LuDownload } from "react-icons/lu";
 
 type DeviceStatus = DeviceSummary["currentStatus"];
 
@@ -148,6 +150,25 @@ export default function DevicesPage() {
     window.scrollTo(0, 0);
   };
 
+  const handleExport = () => {
+    const dataToExport = devices.map((device) => ({
+      ID: device.id,
+      "Tracking Code": device.trackingCode,
+      Brand: device.brand,
+      Model: device.model,
+      "Serial Number": device.serialNo,
+      Status: device.currentStatus,
+      Customer: device.customer.name,
+      Phone: device.customer.phone,
+      "Entry Date": new Date(device.createdAt).toLocaleDateString("tr-TR"),
+    }));
+
+    exportToExcel(
+      dataToExport,
+      `Device_List_${new Date().toISOString().split("T")[0]}`
+    );
+  };
+
   if (isLoading) {
     return <div className="text-center text-gray-700">Devices Loading...</div>;
   }
@@ -166,12 +187,23 @@ export default function DevicesPage() {
         <h1 className="text-2xl font-bold text-gray-900">
           Service Registration List
         </h1>
-        <Link
-          href="/devices/new"
-          className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
-        >
-          + Add New Registration
-        </Link>
+        <div className="flex space-x-2">
+          {devices.length > 0 && (
+            <button
+              onClick={handleExport}
+              className="flex items-center space-x-2 rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 cursor-pointer"
+            >
+              <LuDownload size={16} />
+              <span>Excel</span>
+            </button>
+          )}
+          <Link
+            href="/devices/new"
+            className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+          >
+            + Add New Registration
+          </Link>
+        </div>
       </div>
 
       <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-3">

@@ -6,6 +6,8 @@ import { CustomerSummary, PaginatedCustomersResponse } from "@/lib/types";
 import { useAuth } from "@/contexts/AuthContext";
 import Swal from "sweetalert2";
 import Link from "next/link";
+import { exportToExcel } from "@/lib/excelExporter";
+import { LuDownload } from "react-icons/lu";
 
 const PaginationButtons = ({
   currentPage,
@@ -279,18 +281,45 @@ export default function CustomersPage() {
     });
   };
 
+  const handleExport = () => {
+    const dataToExport = customers.map((c) => ({
+      ID: c.id,
+      "Name Surname": c.name,
+      Phone: c.phone,
+      Email: c.email || "-",
+      "Device Count": c._count.devices,
+      Status: c.isActive ? "Active" : "Passive",
+      "Date of Registration": new Date(c.createdAt).toLocaleDateString("tr-TR"),
+    }));
+    exportToExcel(
+      dataToExport,
+      `Customer_List_${new Date().toISOString().split("T")[0]}`
+    );
+  };
+
   return (
     <div className="rounded-lg bg-white p-6 shadow-md">
       <div className="mb-4 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
         <h1 className="text-2xl font-bold text-gray-900">
           Customer Management (CRM)
         </h1>
-        <button
-          onClick={handleCreateCustomer}
-          className="rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 cursor-pointer"
-        >
-          + Add New Customer
-        </button>
+        <div className="flex space-x-2">
+          {customers.length > 0 && (
+            <button
+              onClick={handleExport}
+              className="flex items-center space-x-2 rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 cursor-pointer"
+            >
+              <LuDownload size={16} />
+              <span>Excel</span>
+            </button>
+          )}
+          <button
+            onClick={handleCreateCustomer}
+            className="rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 cursor-pointer"
+          >
+            + Add New Customer
+          </button>
+        </div>
       </div>
 
       <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-3">

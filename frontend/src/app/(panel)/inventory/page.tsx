@@ -5,6 +5,8 @@ import api from "@/lib/api";
 import { InventoryItem } from "@/lib/types";
 import AdminGuard from "@/components/AdminGuard";
 import Swal from "sweetalert2";
+import { exportToExcel } from "@/lib/excelExporter";
+import { LuDownload } from "react-icons/lu";
 
 export default function InventoryPage() {
   const [items, setItems] = useState<InventoryItem[]>([]);
@@ -254,6 +256,22 @@ export default function InventoryPage() {
     });
   };
 
+  const handleExport = () => {
+    const dataToExport = items.map((item) => ({
+      ID: item.id,
+      "Part Name": item.name,
+      "SKU (Code)": item.sku,
+      "Stock Quantity": item.quantity,
+      "Purchase Price": item.buyPrice || 0,
+      "Selling Price": item.sellPrice,
+      Creation: new Date(item.createdAt).toLocaleDateString("tr-TR"),
+    }));
+    exportToExcel(
+      dataToExport,
+      `Stock_List_${new Date().toISOString().split("T")[0]}`
+    );
+  };
+
   if (isLoading)
     return (
       <div className="text-center text-gray-700">Stock list loading...</div>
@@ -272,12 +290,23 @@ export default function InventoryPage() {
           <h1 className="text-2xl font-bold text-gray-900">
             Stock (Inventory) Management
           </h1>
-          <button
-            onClick={handleCreateItem}
-            className="rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 cursor-pointer"
-          >
-            + Add New Part
-          </button>
+          <div className="flex space-x-2">
+            {items.length > 0 && (
+              <button
+                onClick={handleExport}
+                className="flex items-center space-x-2 rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 cursor-pointer"
+              >
+                <LuDownload size={16} />
+                <span>Excel</span>
+              </button>
+            )}
+            <button
+              onClick={handleCreateItem}
+              className="rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 cursor-pointer"
+            >
+              + Add New Part
+            </button>
+          </div>
         </div>
 
         <div className="overflow-x-auto">

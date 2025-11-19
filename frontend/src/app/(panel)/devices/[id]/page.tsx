@@ -28,7 +28,9 @@ import {
   LuDownload,
   LuCreditCard,
   LuBadgeCheck,
+  LuPrinter,
 } from "react-icons/lu";
+import { generateDeviceLabel } from "@/lib/labelGenerator";
 
 type DeviceStatus = DeviceDetail["currentStatus"];
 
@@ -808,7 +810,7 @@ export default function DeviceDetailPage() {
                   : "Waiver of Fees"}
               </p>
               <p className="text-sm text-gray-600">
-                This device is ready for delivery..
+                This device is ready for delivery.
               </p>
             </div>
           )}
@@ -1024,7 +1026,7 @@ export default function DeviceDetailPage() {
               type="text"
               id="repairDesc"
               className="mt-1 input-field"
-              placeholder="Örn: Soldering workmanship, Software installation"
+              placeholder="Ex: Soldering workmanship, Software installation"
               value={repairDesc}
               onChange={(e) => setRepairDesc(e.target.value)}
             />
@@ -1060,7 +1062,7 @@ export default function DeviceDetailPage() {
             <h2 className="text-xl font-bold text-gray-900">
               Service Registration Details
             </h2>
-            <div className="flex space-x-2">
+            <div className="flex flex-wrap gap-2">
               <button
                 onClick={handleEditToggle}
                 className={`rounded-md px-4 py-2 text-sm font-medium cursor-pointer ${
@@ -1070,6 +1072,15 @@ export default function DeviceDetailPage() {
                 }`}
               >
                 {isEditing ? "Cancel" : "Edit Device Information"}
+              </button>
+
+              <button
+                onClick={() => generateDeviceLabel(device)}
+                className="flex items-center space-x-1 rounded-md bg-orange-600 px-3 py-2 text-xs font-medium text-white hover:bg-orange-700 cursor-pointer"
+                title="Print Barcode/Label"
+              >
+                <LuPrinter size={14} />
+                <span>Label</span>
               </button>
 
               <button
@@ -1306,7 +1317,7 @@ export default function DeviceDetailPage() {
           <ul className="mb-4 divide-y divide-gray-200">
             {!device.repairs || device.repairs.length === 0 ? (
               <li className="py-3 text-gray-500">
-                Labour costs have not yet been added..
+                Labour costs have not yet been added.
               </li>
             ) : (
               device.repairs.map((repair: Repair) => (
